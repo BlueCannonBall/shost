@@ -2,9 +2,13 @@
 #include "Polyweb/polyweb.hpp"
 #include <fstream>
 #include <iostream>
+#include <signal.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 inline std::string get_time() {
     time_t t = time(0);
@@ -36,6 +40,7 @@ const char* sockaddr_to_string(const struct sockaddr* addr) {
 
 int main(int argc, char** argv) {
     pn::init(true);
+    signal(SIGPIPE, SIG_IGN);
 
     std::string port = "8000";
     if (argc >= 2) {
@@ -50,8 +55,19 @@ int main(int argc, char** argv) {
                 std::cout << '[' << get_time() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 std::string filename = "." + req.target;
-                if (filename == "./") {
-                    filename = "index.html";
+
+                struct stat s;
+                if (stat(filename.c_str(), &s) == -1) {
+                    if (errno == ENOENT || errno == ENOTDIR) {
+                        return pw::HTTPResponse::create_basic("404");
+                    } else {
+                        std::cerr << "Error: Stat failed: " << strerror(errno) << std::endl;
+                        return pw::HTTPResponse::create_basic("500");
+                    }
+                }
+
+                if (S_ISDIR(s.st_mode)) {
+                    filename += "/index.html";
                 }
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);

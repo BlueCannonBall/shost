@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
-                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(req.target)}});
+                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}});
                 } else {
                     return pw::HTTPResponse::create_basic("500");
                 }

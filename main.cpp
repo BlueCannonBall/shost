@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <signal.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -44,7 +43,7 @@ int main(int argc, char** argv) {
 
     std::string port = "8000";
     if (argc >= 2) {
-        port = atoi(argv[1]);
+        port = argv[1];
     }
 
     pw::Server server;
@@ -89,11 +88,13 @@ int main(int argc, char** argv) {
 
     if (server.bind("0.0.0.0", port) == PW_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
+        return 1;
     }
 
     std::cout << "Serving HTTP on 0.0.0.0 port " << port << " (http://0.0.0.0:" << port << "/) ..." << std::endl;
     if (server.listen() == PW_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
+        return 1;
     }
 
     pn::quit();

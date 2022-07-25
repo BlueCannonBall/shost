@@ -68,6 +68,10 @@ int main(int argc, char** argv) {
                 }
 
                 if (S_ISDIR(s.st_mode)) {
+                    if (req.target.back() != '/') {
+                        return pw::HTTPResponse::create_basic("301", {{"Location", req.target + '/'}});
+                    }
+
                     DIR* dir;
                     if ((dir = opendir(filename.c_str())) == NULL) {
                         std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
@@ -83,7 +87,7 @@ int main(int argc, char** argv) {
 
                         if (strcmp(entry->d_name, "index.htm") == 0 || strcmp(entry->d_name, "index.html") == 0) {
                             index_found = true;
-                            filename += (filename.back() == '/' ? std::string() : "/") + entry->d_name;
+                            filename += entry->d_name;
                             break;
                         }
 
@@ -104,13 +108,18 @@ int main(int argc, char** argv) {
                         ss << "<h1>Directory listing for " << req.target << (req.target.size() > 1 ? "/</h1>" : "</h1>");
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
-                            std::string full_path = (filename.back() == '/' ? filename : filename + "/") + entry.d_name;
+                            std::string full_path = filename + entry.d_name;
+
                             struct stat s;
                             if (stat(full_path.c_str(), &s) == -1) {
                                 std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
                                 continue;
                             }
-                            ss << "<li><a href=\"" << full_path.substr(1) << "\">" << entry.d_name << (S_ISDIR(s.st_mode) ? "/</a></li>" : "</a></li>");
+
+                            if (S_ISDIR(s.st_mode))
+                                ss << "<li><a href=\"" << full_path.substr(2) << "/\">" << entry.d_name << "/</a></li>";
+                            else
+                                ss << "<li><a href=\"" << full_path.substr(2) << "\">" << entry.d_name << "</a></li>";
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";

@@ -68,10 +68,14 @@ int main(int argc, char** argv) {
                 }
 
                 if (S_ISDIR(s.st_mode)) {
-                    DIR* dir = opendir(filename.c_str());
+                    DIR* dir;
+                    if ((dir = opendir(filename.c_str())) == NULL) {
+                        std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
+                        return pw::HTTPResponse::create_basic("500");
+                    }
+
                     struct dirent* entry;
                     std::vector<struct dirent> entries;
-
                     bool index_found = false;
                     while ((entry = readdir(dir))) {
                         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
@@ -85,6 +89,8 @@ int main(int argc, char** argv) {
 
                         entries.push_back(*entry);
                     }
+
+                    closedir(dir);
 
                     if (!index_found) {
                         std::stringstream ss;

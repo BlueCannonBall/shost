@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++14 -s -Ofast -flto -pthread -mavx2 -fdiagnostics-color=always
-LIBS = -lssl -lcrypto
+LIBS = -lssl -lcrypto -lboost_program_options
 OBJDIR = obj
 OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o
 PREFIX = /usr/local

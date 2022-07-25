@@ -1,6 +1,7 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
 #include <boost/algorithm/string.hpp>
+#include <boost/program_options.hpp>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
@@ -13,6 +14,8 @@
 #include <time.h>
 #include <unistd.h>
 #include <vector>
+
+namespace po = boost::program_options;
 
 inline std::string get_time() {
     time_t t = time(0);
@@ -42,20 +45,53 @@ const char* sockaddr_to_string(const struct sockaddr* addr) {
     return ret;
 }
 
-int main(int argc, char** argv) {
-    pn::init(true);
-    signal(SIGPIPE, SIG_IGN);
+void print_help(po::options_description& desc, char* prog_name) {
+    std::cout << "Usage: " << prog_name << " [options] [port]\n\n"
+              << desc;
+}
 
-    std::string port = "8000";
-    if (argc >= 2) {
-        port = argv[1];
+int main(int argc, char** argv) {
+    po::options_description desc("Options");
+    po::positional_options_description p;
+    po::variables_map vm;
+
+    std::string port;
+    std::string bind_address;
+    std::string root_dir_path;
+
+    desc.add_options()("help,h", "Show this help message and exit")("port,p", po::value(&port)->default_value("8000"), "Specify alternate port")("bind,b", po::value(&bind_address)->default_value("0.0.0.0"), "Specify alternate bind address")("directory,d", po::value(&port)->default_value("."), "Specify alternative directory");
+    p.add("port", 1);
+
+    try {
+        po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
+        po::notify(vm);
+
+        if (vm.count("help")) {
+            print_help(desc, argv[0]);
+            return 0;
+        }
+    } catch (std::exception& e) {
+        if (vm.count("help")) {
+            print_help(desc, argv[0]);
+            return 0;
+        } else {
+            std::cerr << "Error: CLI error: " << e.what() << std::endl;
+            return 1;
+        }
     }
 
+    if (argc >= 2)
+        port = argv[1];
+    if (argc >= 3)
+        root_dir_path = argv[2];
+
+    pn::init(true);
+    signal(SIGPIPE, SIG_IGN);
     pw::Server server;
 
     server.route("/",
         pw::HTTPRoute {
-            [](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
+            [&root_dir_path](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << get_time() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 std::vector<std::string> split_req_target;
@@ -66,7 +102,7 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                std::string filename = "." + req.target;
+                std::string filename = root_dir_path + req.target;
 
                 struct stat s;
                 if (stat(filename.c_str(), &s) == -1) {
@@ -156,12 +192,12 @@ int main(int argc, char** argv) {
             },
             true});
 
-    if (server.bind("0.0.0.0", port) == PW_ERROR) {
+    if (server.bind(bind_address, port) == PW_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;
     }
 
-    std::cout << "Serving HTTP on 0.0.0.0 port " << port << " (http://0.0.0.0:" << port << "/) ..." << std::endl;
+    std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
     if (server.listen() == PW_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;

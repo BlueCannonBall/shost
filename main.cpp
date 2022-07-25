@@ -1,8 +1,10 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
+#include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <signal.h>
+#include <sstream>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -60,18 +62,59 @@ int main(int argc, char** argv) {
                     if (errno == ENOENT || errno == ENOTDIR) {
                         return pw::HTTPResponse::create_basic("404");
                     } else {
-                        std::cerr << "Error: Stat failed: " << strerror(errno) << std::endl;
+                        std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
                         return pw::HTTPResponse::create_basic("500");
                     }
                 }
 
                 if (S_ISDIR(s.st_mode)) {
-                    filename += "/index.html";
+                    DIR* dir = opendir(filename.c_str());
+                    struct dirent* entry;
+                    std::vector<struct dirent> entries;
+
+                    bool index_found = false;
+                    while ((entry = readdir(dir))) {
+                        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                            continue;
+
+                        if (strcmp(entry->d_name, "index.htm") == 0 || strcmp(entry->d_name, "index.html") == 0) {
+                            index_found = true;
+                            filename += "/" + std::string(entry->d_name);
+                            break;
+                        }
+
+                        entries.push_back(*entry);
+                    }
+
+                    if (!index_found) {
+                        std::stringstream ss;
+                        ss << "<!DOCTYPE html>";
+                        ss << "<html>";
+                        ss << "<head>";
+                        ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
+                        ss << "<title>Directory listing for " << req.target << (req.target.size() > 1 ? "/</title>" : "</title>");
+                        ss << "</head>";
+                        ss << "<body>";
+                        ss << "<h1>Directory listing for " << req.target << (req.target.size() > 1 ? "/</h1>" : "</h1>");
+                        ss << "<hr><ul>";
+                        for (const auto& entry : entries) {
+                            struct stat s;
+                            if (stat((filename + "/" + entry.d_name).c_str(), &s) == -1) {
+                                std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
+                                continue;
+                            }
+                            ss << "<li><a href=\"" << entry.d_name << "\">" << entry.d_name << (S_ISDIR(s.st_mode) ? "/</a></li>" : "</a></li>");
+                        }
+                        ss << "</ul><hr>";
+                        ss << "</body>";
+                        ss << "</html>";
+                        return pw::HTTPResponse("200", ss.str(), {{"Content-Type", "text/html"}});
+                    }
                 }
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
-                    return pw::HTTPResponse::create_basic("404");
+                    return pw::HTTPResponse::create_basic("500");
                 }
 
                 std::streamsize size = file.tellg();

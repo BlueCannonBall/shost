@@ -80,11 +80,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (argc >= 2)
-        port = argv[1];
-    if (argc >= 3)
-        root_dir_path = argv[2];
-
     pn::init(true);
     signal(SIGPIPE, SIG_IGN);
     pw::Server server;

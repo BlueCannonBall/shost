@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 
                 if (S_ISDIR(s.st_mode)) {
                     if (req.target.back() != '/') {
-                        return pw::HTTPResponse::create_basic("301", {{"Location", req.target + '/'}});
+                        return pw::HTTPResponse("301", {{"Location", req.target + '/'}});
                     }
 
                     DIR* dir;

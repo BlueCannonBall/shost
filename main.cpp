@@ -104,12 +104,13 @@ int main(int argc, char** argv) {
                         ss << "<h1>Directory listing for " << req.target << (req.target.size() > 1 ? "/</h1>" : "</h1>");
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
+                            std::string full_path = filename + "/" + entry.d_name;
                             struct stat s;
-                            if (stat((filename + "/" + entry.d_name).c_str(), &s) == -1) {
+                            if (stat(full_path.c_str(), &s) == -1) {
                                 std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
                                 continue;
                             }
-                            ss << "<li><a href=\"" << entry.d_name << "\">" << entry.d_name << (S_ISDIR(s.st_mode) ? "/</a></li>" : "</a></li>");
+                            ss << "<li><a href=\"" << full_path.substr(1) << "\">" << entry.d_name << (S_ISDIR(s.st_mode) ? "/</a></li>" : "</a></li>");
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";

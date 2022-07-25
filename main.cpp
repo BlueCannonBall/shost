@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
                         if (strcmp(entry->d_name, "index.htm") == 0 || strcmp(entry->d_name, "index.html") == 0) {
                             index_found = true;
-                            filename += "/" + std::string(entry->d_name);
+                            filename += (filename.back() == '/' ? std::string() : "/") + entry->d_name;
                             break;
                         }
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
                         ss << "<h1>Directory listing for " << req.target << (req.target.size() > 1 ? "/</h1>" : "</h1>");
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
-                            std::string full_path = filename + "/" + entry.d_name;
+                            std::string full_path = (filename.back() == '/' ? filename : filename + "/") + entry.d_name;
                             struct stat s;
                             if (stat(full_path.c_str(), &s) == -1) {
                                 std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;

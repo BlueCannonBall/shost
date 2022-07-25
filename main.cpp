@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     p.add("port", 1);
 
     try {
-        po::store(po::command_line_parser(argc, argv).options(desc).run(), vm);
+        po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
         po::notify(vm);
 
         if (vm.count("help")) {

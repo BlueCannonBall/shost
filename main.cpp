@@ -102,24 +102,21 @@ int main(int argc, char** argv) {
                         ss << "<html>";
                         ss << "<head>";
                         ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
-                        ss << "<title>Directory listing for " << req.target << (req.target.size() > 1 ? "/</title>" : "</title>");
+                        ss << "<title>Directory listing for " << req.target << "</title>";
                         ss << "</head>";
                         ss << "<body>";
-                        ss << "<h1>Directory listing for " << req.target << (req.target.size() > 1 ? "/</h1>" : "</h1>");
+                        ss << "<h1>Directory listing for " << req.target << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
-                            std::string full_path = filename + entry.d_name;
-
                             struct stat s;
-                            if (stat(full_path.c_str(), &s) == -1) {
+                            if (stat((filename + entry.d_name).c_str(), &s) == -1) {
                                 std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
                                 continue;
                             }
-
                             if (S_ISDIR(s.st_mode))
-                                ss << "<li><a href=\"" << full_path.substr(2) << "/\">" << entry.d_name << "/</a></li>";
+                                ss << "<li><a href=\"" << entry.d_name << "/\">" << entry.d_name << "/</a></li>";
                             else
-                                ss << "<li><a href=\"" << full_path.substr(2) << "\">" << entry.d_name << "</a></li>";
+                                ss << "<li><a href=\"" << entry.d_name << "\">" << entry.d_name << "</a></li>";
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";

@@ -121,6 +121,7 @@ int main(int argc, char** argv) {
                         ss << "</ul><hr>";
                         ss << "</body>";
                         ss << "</html>";
+                        ss << std::endl;
                         return pw::HTTPResponse("200", ss.str(), {{"Content-Type", "text/html"}});
                     }
                 }

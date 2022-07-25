@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <signal.h>
 #include <sstream>
 #include <string.h>
@@ -10,6 +11,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <vector>
 
 inline std::string get_time() {
     time_t t = time(0);
@@ -79,19 +81,21 @@ int main(int argc, char** argv) {
                     }
 
                     struct dirent* entry;
-                    std::vector<struct dirent> entries;
+                    std::set<std::string> entries;
                     bool index_found = false;
                     while ((entry = readdir(dir))) {
-                        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                        std::string string_entry_name(entry->d_name);
+
+                        if (string_entry_name == "." || string_entry_name == "..")
                             continue;
 
-                        if (strcmp(entry->d_name, "index.htm") == 0 || strcmp(entry->d_name, "index.html") == 0) {
+                        if (string_entry_name == "index.html" || string_entry_name == "index.htm") {
                             index_found = true;
-                            filename += entry->d_name;
+                            filename += string_entry_name;
                             break;
                         }
 
-                        entries.push_back(*entry);
+                        entries.insert(std::move(string_entry_name));
                     }
 
                     closedir(dir);
@@ -109,14 +113,14 @@ int main(int argc, char** argv) {
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             struct stat s;
-                            if (stat((filename + entry.d_name).c_str(), &s) == -1) {
+                            if (stat((filename + entry).c_str(), &s) == -1) {
                                 std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
                                 continue;
                             }
                             if (S_ISDIR(s.st_mode))
-                                ss << "<li><a href=\"" << entry.d_name << "/\">" << entry.d_name << "/</a></li>";
+                                ss << "<li><a href=\"" << entry << "/\">" << entry << "/</a></li>";
                             else
-                                ss << "<li><a href=\"" << entry.d_name << "\">" << entry.d_name << "</a></li>";
+                                ss << "<li><a href=\"" << entry << "\">" << entry << "</a></li>";
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";

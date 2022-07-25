@@ -1,5 +1,6 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
+#include <boost/algorithm/string.hpp>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
@@ -56,6 +57,14 @@ int main(int argc, char** argv) {
         pw::HTTPRoute {
             [](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << get_time() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+
+                std::vector<std::string> split_req_target;
+                boost::split(split_req_target, req.target, boost::is_any_of("/"));
+                for (const auto& component : split_req_target) {
+                    if (component == "..") {
+                        return pw::HTTPResponse::create_basic("400");
+                    }
+                }
 
                 std::string filename = "." + req.target;
 

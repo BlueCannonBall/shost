@@ -6,7 +6,6 @@
 #include <fstream>
 #include <iostream>
 #include <set>
-#include <signal.h>
 #include <sstream>
 #include <string.h>
 #include <sys/stat.h>
@@ -16,14 +15,6 @@
 #include <vector>
 
 namespace po = boost::program_options;
-
-inline std::string get_time() {
-    time_t t = time(0);
-    struct tm* now = localtime(&t);
-    char time_cstr[50] = {0};
-    strftime(time_cstr, sizeof(time_cstr), "%a %b %d %H:%M:%S %Y", now);
-    return time_cstr;
-}
 
 const char* sockaddr_to_string(const struct sockaddr* addr) {
     static char ret[1024];
@@ -81,13 +72,12 @@ int main(int argc, char** argv) {
     }
 
     pn::init(true);
-    signal(SIGPIPE, SIG_IGN);
     pw::Server server;
 
     server.route("/",
         pw::HTTPRoute {
             [&root_dir_path](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
-                std::cout << '[' << get_time() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+                std::cout << '[' << pw::get_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 std::vector<std::string> split_req_target;
                 boost::split(split_req_target, req.target, boost::is_any_of("/"));
@@ -111,7 +101,7 @@ int main(int argc, char** argv) {
 
                 if (S_ISDIR(s.st_mode)) {
                     if (req.target.back() != '/') {
-                        return pw::HTTPResponse("301", {{"Location", req.target + '/'}});
+                        return pw::HTTPResponse::create_basic("301", {{"Location", req.target + '/'}});
                     }
 
                     DIR* dir;

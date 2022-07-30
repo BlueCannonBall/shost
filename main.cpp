@@ -16,17 +16,16 @@
 
 namespace po = boost::program_options;
 
-const char* sockaddr_to_string(const struct sockaddr* addr) {
-    static char ret[1024];
-    memset(ret, 0, sizeof(ret));
+std::string sockaddr_to_string(const struct sockaddr* addr) {
+    std::string ret;
 
     switch (addr->sa_family) {
         case AF_INET:
-            inet_ntop(AF_INET, &(((struct sockaddr_in*) addr)->sin_addr), ret, sizeof(ret));
+            pn::inet_ntop(AF_INET, &((struct sockaddr_in*) addr)->sin_addr, ret);
             break;
 
         case AF_INET6:
-            inet_ntop(AF_INET6, &(((struct sockaddr_in6*) addr)->sin6_addr), ret, sizeof(ret));
+            pn::inet_ntop(AF_INET6, &((struct sockaddr_in6*) addr)->sin6_addr, ret);
             break;
 
         default:

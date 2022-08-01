@@ -35,6 +35,34 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
     return ret;
 }
 
+pw::HTTPResponse create_error_resp(const std::string& status_code) {
+    std::stringstream ss;
+    ss << "<!DOCTYPE html>";
+    ss << "<html>";
+    ss << "<head>";
+    ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
+    ss << "<title>Error response</title>";
+    ss << "</head>";
+    ss << "<body>";
+    ss << "<h1>Error response</h1>";
+    ss << "<p>Error code: " << status_code << "</p>";
+    ss << "<p>Message: " << pw::status_code_to_reason_phrase(status_code) << "</p>";
+    ss << "</body>";
+    ss << "</html>";
+    ss << std::endl;
+    return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}});
+}
+
+pw::HTTPResponse create_error_resp(const std::string& status_code, const pw::HTTPHeaders& headers) {
+    pw::HTTPResponse resp = create_error_resp(status_code);
+    for (auto& header : headers) {
+        if (!resp.headers.count(header.first)) {
+            resp.headers.insert(std::move(header));
+        }
+    }
+    return resp;
+}
+
 void print_help(po::options_description& desc, char* prog_name) {
     std::cout << "Usage: " << prog_name << " [options] [port]\n\n"
               << desc;
@@ -73,20 +101,22 @@ int main(int argc, char** argv) {
     pn::init(true);
     pw::Server server;
 
+    server.on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
+
     server.route("/",
         pw::HTTPRoute {
             [&root_dir_path](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << pw::get_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET") {
-                    return pw::HTTPResponse::create_basic("405", {{"Allow", "GET"}});
+                    return create_error_resp("405", {{"Allow", "GET"}});
                 }
 
                 std::vector<std::string> split_req_target;
                 boost::split(split_req_target, req.target, boost::is_any_of("/"));
                 for (const auto& component : split_req_target) {
                     if (component == "..") {
-                        return pw::HTTPResponse::create_basic("400");
+                        return create_error_resp("400");
                     }
                 }
 
@@ -95,22 +125,22 @@ int main(int argc, char** argv) {
                 struct stat s;
                 if (stat(filename.c_str(), &s) == -1) {
                     if (errno == ENOENT || errno == ENOTDIR) {
-                        return pw::HTTPResponse::create_basic("404");
+                        return create_error_resp("404");
                     } else {
                         std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                        return pw::HTTPResponse::create_basic("500");
+                        return create_error_resp("500");
                     }
                 }
 
                 if (S_ISDIR(s.st_mode)) {
                     if (req.target.back() != '/') {
-                        return pw::HTTPResponse::create_basic("301", {{"Location", req.target + '/'}});
+                        return create_error_resp("301", {{"Location", req.target + '/'}});
                     }
 
                     DIR* dir;
                     if ((dir = opendir(filename.c_str())) == NULL) {
                         std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
-                        return pw::HTTPResponse::create_basic("500");
+                        return create_error_resp("500");
                     }
 
                     struct dirent* entry;
@@ -165,7 +195,7 @@ int main(int argc, char** argv) {
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
-                    return pw::HTTPResponse::create_basic("500");
+                    return create_error_resp("500");
                 }
 
                 std::streamsize size = file.tellg();
@@ -175,7 +205,7 @@ int main(int argc, char** argv) {
                 if (file.read(content.data(), size)) {
                     return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}});
                 } else {
-                    return pw::HTTPResponse::create_basic("500");
+                    return create_error_resp("500");
                 }
             },
             true,

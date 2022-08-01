@@ -78,6 +78,10 @@ int main(int argc, char** argv) {
             [&root_dir_path](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << pw::get_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
+                if (req.method != "GET") {
+                    return pw::HTTPResponse::create_basic("405", {{"Allow", "GET"}});
+                }
+
                 std::vector<std::string> split_req_target;
                 boost::split(split_req_target, req.target, boost::is_any_of("/"));
                 for (const auto& component : split_req_target) {
@@ -174,7 +178,8 @@ int main(int argc, char** argv) {
                     return pw::HTTPResponse::create_basic("500");
                 }
             },
-            true});
+            true,
+        });
 
     if (server.bind(bind_address, port) == PW_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;

@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <vector>
 
+#define CACHE_CONTROL "public, no-cache"
+
 namespace po = boost::program_options;
 
 struct CacheEntry {
@@ -199,14 +201,14 @@ int main(int argc, char** argv) {
                     }
                 }
 
+                pw::HTTPHeaders::const_iterator if_modified_since_it;
+                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
+                    return pw::HTTPResponse("304");
+                }
+
                 decltype(cache)::const_iterator cache_entry_it;
-                if ((cache_entry_it = cache.find(filename)) != cache.end()) {
-                    pw::HTTPHeaders::const_iterator if_modified_since_it;
-                    if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
-                        return pw::HTTPResponse::create_basic("304");
-                    } else if (cache_entry_it->second.last_modified == s.st_mtime) {
-                        return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}});
-                    }
+                if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
+                    return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
                 }
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
@@ -223,7 +225,7 @@ int main(int argc, char** argv) {
                         .last_modified = s.st_mtime,
                         .content = content,
                     };
-                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}});
+                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
                 } else {
                     return create_error_resp("500");
                 }

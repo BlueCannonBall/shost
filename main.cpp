@@ -16,6 +16,11 @@
 
 namespace po = boost::program_options;
 
+struct CacheEntry {
+    time_t last_modified;
+    std::vector<char> content;
+};
+
 std::string sockaddr_to_string(const struct sockaddr* addr) {
     std::string ret;
 
@@ -100,13 +105,14 @@ int main(int argc, char** argv) {
 
     pn::init(true);
     pw::Server server;
+    std::unordered_map<std::string, CacheEntry> cache;
 
     server.on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
 
     server.route("/",
         pw::HTTPRoute {
-            [&root_dir_path](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
-                std::cout << '[' << pw::get_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+            [&root_dir_path, &cache](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
+                std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET") {
                     return create_error_resp("405", {{"Allow", "GET"}});
@@ -193,6 +199,16 @@ int main(int argc, char** argv) {
                     }
                 }
 
+                decltype(cache)::const_iterator cache_entry_it;
+                if ((cache_entry_it = cache.find(filename)) != cache.end()) {
+                    pw::HTTPHeaders::const_iterator if_modified_since_it;
+                    if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
+                        return pw::HTTPResponse::create_basic("304");
+                    } else if (cache_entry_it->second.last_modified == s.st_mtime) {
+                        return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}});
+                    }
+                }
+
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
                     return create_error_resp("500");
@@ -203,7 +219,11 @@ int main(int argc, char** argv) {
 
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
-                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}});
+                    cache[filename] = CacheEntry {
+                        .last_modified = s.st_mtime,
+                        .content = content,
+                    };
+                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}});
                 } else {
                     return create_error_resp("500");
                 }

@@ -2,6 +2,8 @@
 #include "Polyweb/polyweb.hpp"
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
+#include <boost/thread/locks.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
@@ -17,6 +19,10 @@
 #define CACHE_CONTROL "public, no-cache"
 
 namespace po = boost::program_options;
+
+typedef boost::shared_mutex Lock;
+typedef boost::unique_lock<Lock> WriteLock;
+typedef boost::shared_lock<Lock> ReadLock;
 
 struct CacheEntry {
     time_t last_modified;
@@ -108,12 +114,13 @@ int main(int argc, char** argv) {
     pn::init(true);
     pw::Server server;
     std::unordered_map<std::string, CacheEntry> cache;
+    Lock cache_lock;
 
     server.on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
 
     server.route("/",
         pw::HTTPRoute {
-            [&root_dir_path, &cache](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
+            [&root_dir_path, &cache, &cache_lock](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET") {
@@ -206,10 +213,12 @@ int main(int argc, char** argv) {
                     return pw::HTTPResponse("304");
                 }
 
+                ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
                 if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
                     return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
                 }
+                r_lock.unlock();
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
@@ -221,10 +230,12 @@ int main(int argc, char** argv) {
 
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
+                    WriteLock w_lock(cache_lock);
                     cache[filename] = CacheEntry {
                         .last_modified = s.st_mtime,
                         .content = content,
                     };
+                    w_lock.unlock();
                     return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
                 } else {
                     return create_error_resp("500");

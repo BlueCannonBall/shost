@@ -169,6 +169,14 @@ int main(int argc, char** argv) {
                         if (string_entry_name == "index.html" || string_entry_name == "index.htm") {
                             index_found = true;
                             filename += string_entry_name;
+                            if (stat(filename.c_str(), &s) == -1) {
+                                if (errno == ENOENT || errno == ENOTDIR) {
+                                    return create_error_resp("404");
+                                } else {
+                                    std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
+                                    return create_error_resp("500");
+                                }
+                            }
                             break;
                         }
 

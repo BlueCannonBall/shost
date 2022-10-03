@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -Wall -std=c++14 -s -Ofast -flto -pthread -mavx2 -fdiagnostics-color=always
+CXXFLAGS = -Wall -std=c++14 -O2 -flto -pthread -fdiagnostics-color=always
 LIBS = -lssl -lcrypto -lboost_program_options -lboost_thread
 OBJDIR = obj
 OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o

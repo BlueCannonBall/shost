@@ -251,13 +251,13 @@ int main(int argc, char** argv) {
             true,
         });
 
-    if (server.bind(bind_address, port) == PW_ERROR) {
-        std::cerr << "Error: " << pw::universal_strerror() << std::endl;
+    if (server.bind(bind_address, port) == PN_ERROR) {
+        std::cerr << "Error: " << pn::universal_strerror() << std::endl;
         return 1;
     }
 
     std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
-    if (server.listen() == PW_ERROR) {
+    if (server.listen() == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;
     }

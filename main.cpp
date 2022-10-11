@@ -111,13 +111,13 @@ int main(int argc, char** argv) {
     }
 
     pn::init(true);
-    pw::Server server;
+    pn::UniqueSock<pw::Server> server;
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server.on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
+    server->on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
 
-    server.route("/",
+    server->route("/",
         pw::HTTPRoute {
             [&root_dir_path, &cache, &cache_lock](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
@@ -251,13 +251,13 @@ int main(int argc, char** argv) {
             true,
         });
 
-    if (server.bind(bind_address, port) == PN_ERROR) {
+    if (server->bind(bind_address, port) == PN_ERROR) {
         std::cerr << "Error: " << pn::universal_strerror() << std::endl;
         return 1;
     }
 
     std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
-    if (server.listen() == PN_ERROR) {
+    if (server->listen() == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;
     }

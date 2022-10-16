@@ -15,7 +15,10 @@
 #include <time.h>
 #include <vector>
 
-#define CACHE_CONTROL "public, no-cache"
+#define CACHE_CONTROL \
+    { "Cache-Control", "public, no-cache" }
+#define ACCESS_CONTROL_ALLOW_ORIGIN \
+    { "Access-Control-Allow-Origin", "*" }
 
 namespace po = boost::program_options;
 
@@ -65,13 +68,22 @@ pw::HTTPResponse create_error_resp(const std::string& status_code) {
     return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}});
 }
 
-pw::HTTPResponse create_error_resp(const std::string& status_code, const pw::HTTPHeaders& headers) {
+pw::HTTPResponse create_error_resp(const std::string& status_code, pw::HTTPHeaders headers) {
     pw::HTTPResponse resp = create_error_resp(status_code);
-    for (auto& header : headers) {
+
+    if (!headers.count("Cache-Control")) {
+        headers.insert(CACHE_CONTROL);
+    }
+    if (!headers.count("Access-Control-Allow-Origin")) {
+        headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN);
+    }
+
+    for (const auto& header : headers) {
         if (!resp.headers.count(header.first)) {
             resp.headers.insert(std::move(header));
         }
     }
+
     return resp;
 }
 
@@ -217,13 +229,13 @@ int main(int argc, char** argv) {
 
                 pw::HTTPHeaders::const_iterator if_modified_since_it;
                 if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
-                    return pw::HTTPResponse("304");
+                    return pw::HTTPResponse("304", {CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 }
 
                 ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
                 if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
-                    return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
+                    return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 }
                 r_lock.unlock();
 
@@ -243,7 +255,7 @@ int main(int argc, char** argv) {
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, {"Cache-Control", CACHE_CONTROL}});
+                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 } else {
                     return create_error_resp("500");
                 }

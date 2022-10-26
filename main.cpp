@@ -4,15 +4,15 @@
 #include <boost/program_options.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
+#include <cstring>
+#include <ctime>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
 #include <vector>
 
 #define CACHE_CONTROL \
@@ -51,7 +51,7 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
 }
 
 pw::HTTPResponse create_error_resp(const std::string& status_code) {
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << "<!DOCTYPE html>";
     ss << "<html>";
     ss << "<head>";
@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
                     closedir(dir);
 
                     if (!index_found) {
-                        std::stringstream ss;
+                        std::ostringstream ss;
                         ss << "<!DOCTYPE html>";
                         ss << "<html>";
                         ss << "<head>";

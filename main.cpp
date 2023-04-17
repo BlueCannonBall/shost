@@ -35,16 +35,16 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
     std::string ret;
 
     switch (addr->sa_family) {
-        case AF_INET:
-            pn::inet_ntop(AF_INET, &((struct sockaddr_in*) addr)->sin_addr, ret);
-            break;
+    case AF_INET:
+        pn::inet_ntop(AF_INET, &((struct sockaddr_in*) addr)->sin_addr, ret);
+        break;
 
-        case AF_INET6:
-            pn::inet_ntop(AF_INET6, &((struct sockaddr_in6*) addr)->sin6_addr, ret);
-            break;
+    case AF_INET6:
+        pn::inet_ntop(AF_INET6, &((struct sockaddr_in6*) addr)->sin6_addr, ret);
+        break;
 
-        default:
-            return "Unknown AF";
+    default:
+        return "Unknown AF";
     }
 
     return ret;

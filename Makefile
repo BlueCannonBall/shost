@@ -1,13 +1,13 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++14 -O2 -flto -pthread -fdiagnostics-color=always
-LIBS = -lssl -lcrypto -lboost_program_options -lboost_thread
+LDLIBS = -lssl -lcrypto -lboost_program_options -lboost_thread
 OBJDIR = obj
 OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o
 PREFIX = /usr/local
 TARGET = shost
 
 $(TARGET): $(OBJS)
-	$(CXX) $^ $(CXXFLAGS) $(LIBS) -o $@
+	$(CXX) $^ $(CXXFLAGS) $(LDLIBS) -o $@
 
 $(OBJDIR)/main.o: main.cpp **/*.hpp
 	mkdir -p $(OBJDIR)

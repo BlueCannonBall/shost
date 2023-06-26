@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     server->route("/",
         pw::HTTPRoute {
             [&root_dir_path, &cache, &cache_lock](const pw::Connection& conn, const pw::HTTPRequest& req) -> pw::HTTPResponse {
-                std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+                std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"\n";
 
                 if (req.method != "GET") {
                     return create_error_resp("405", {{"Allow", "GET"}});

@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++14 -O2 -flto -pthread -fdiagnostics-color=always
-LDLIBS = -lssl -lcrypto -lboost_program_options -lboost_thread
+LDLIBS = -lcrypto -lboost_program_options -lboost_thread
 HEADERS = $(shell find . -name "*.hpp")
 OBJDIR = obj
 OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o

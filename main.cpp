@@ -1,6 +1,5 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
-#include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
@@ -138,8 +137,7 @@ int main(int argc, char** argv) {
                     return create_error_resp("405", {{"Allow", "GET"}});
                 }
 
-                std::vector<std::string> split_req_target;
-                boost::split(split_req_target, req.target, boost::is_any_of("/"));
+                std::vector<std::string> split_req_target = pw::string::split(req.target, '/');
                 for (const auto& component : split_req_target) {
                     if (component == "..") {
                         return create_error_resp("400");

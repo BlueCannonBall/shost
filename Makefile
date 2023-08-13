@@ -3,7 +3,7 @@ CXXFLAGS = -Wall -std=c++14 -O2 -flto -pthread
 LDLIBS = -lcrypto -lboost_program_options -lboost_thread
 HEADERS = $(shell find . -name "*.hpp")
 OBJDIR = obj
-OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o $(OBJDIR)/string.o
+OBJS = $(OBJDIR)/main.o $(OBJDIR)/polynet.o $(OBJDIR)/polyweb.o $(OBJDIR)/polyweb_string.o
 PREFIX = /usr/local
 TARGET = shost
 
@@ -22,7 +22,7 @@ $(OBJDIR)/polyweb.o: Polyweb/polyweb.cpp Polyweb/Polynet/polynet.hpp Polyweb/pol
 	mkdir -p $(OBJDIR)
 	$(CXX) -c $< $(CXXFLAGS) -o $@
 
-$(OBJDIR)/string.o: Polyweb/string.cpp Polyweb/string.hpp
+$(OBJDIR)/polyweb_string.o: Polyweb/string.cpp Polyweb/string.hpp
 	mkdir -p $(OBJDIR)
 	$(CXX) -c $< $(CXXFLAGS) -o $@
 

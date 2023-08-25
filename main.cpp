@@ -49,7 +49,7 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
     return ret;
 }
 
-pw::HTTPResponse create_error_resp(const std::string& status_code) {
+pw::HTTPResponse make_error_resp(uint16_t status_code) {
     std::ostringstream ss;
     ss << "<!DOCTYPE html>";
     ss << "<html>";
@@ -67,8 +67,8 @@ pw::HTTPResponse create_error_resp(const std::string& status_code) {
     return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}});
 }
 
-pw::HTTPResponse create_error_resp(const std::string& status_code, pw::HTTPHeaders headers) {
-    pw::HTTPResponse resp = create_error_resp(status_code);
+pw::HTTPResponse make_error_resp(uint16_t status_code, pw::HTTPHeaders headers) {
+    pw::HTTPResponse resp = make_error_resp(status_code);
 
     if (!headers.count("Cache-Control")) {
         headers.insert(CACHE_CONTROL);
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server->on_error = (pw::HTTPResponse(*)(const std::string&)) & create_error_resp;
+    server->on_error = (pw::HTTPResponse(*)(uint16_t)) & make_error_resp;
 
     server->route("/",
         pw::HTTPRoute {
@@ -134,13 +134,13 @@ int main(int argc, char** argv) {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET") {
-                    return create_error_resp("405", {{"Allow", "GET"}});
+                    return make_error_resp(405, {{"Allow", "GET"}});
                 }
 
                 std::vector<std::string> split_req_target = pw::string::split(req.target, '/');
                 for (const auto& component : split_req_target) {
                     if (component == "..") {
-                        return create_error_resp("400");
+                        return make_error_resp(400);
                     }
                 }
 
@@ -149,22 +149,22 @@ int main(int argc, char** argv) {
                 struct stat s;
                 if (stat(filename.c_str(), &s) == -1) {
                     if (errno == ENOENT || errno == ENOTDIR) {
-                        return create_error_resp("404");
+                        return make_error_resp(404);
                     } else {
                         std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                        return create_error_resp("500");
+                        return make_error_resp(500);
                     }
                 }
 
                 if (S_ISDIR(s.st_mode)) {
                     if (req.target.back() != '/') {
-                        return create_error_resp("301", {{"Location", req.target + '/'}});
+                        return make_error_resp(301, {{"Location", req.target + '/'}});
                     }
 
                     DIR* dir;
                     if ((dir = opendir(filename.c_str())) == NULL) {
                         std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
-                        return create_error_resp("500");
+                        return make_error_resp(500);
                     }
 
                     struct dirent* entry;
@@ -181,10 +181,10 @@ int main(int argc, char** argv) {
                             filename += string_entry_name;
                             if (stat(filename.c_str(), &s) == -1) {
                                 if (errno == ENOENT || errno == ENOTDIR) {
-                                    return create_error_resp("404");
+                                    return make_error_resp(404);
                                 } else {
                                     std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                                    return create_error_resp("500");
+                                    return make_error_resp(500);
                                 }
                             }
                             break;
@@ -221,25 +221,25 @@ int main(int argc, char** argv) {
                         ss << "</body>";
                         ss << "</html>";
                         ss << std::endl;
-                        return pw::HTTPResponse("200", ss.str(), {{"Content-Type", "text/html"}});
+                        return pw::HTTPResponse(200, ss.str(), {{"Content-Type", "text/html"}});
                     }
                 }
 
                 pw::HTTPHeaders::const_iterator if_modified_since_it;
                 if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
-                    return pw::HTTPResponse("304", {CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(304, {CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 }
 
                 ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
                 if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
-                    return pw::HTTPResponse("200", cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 }
                 r_lock.unlock();
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
-                    return create_error_resp("500");
+                    return make_error_resp(500);
                 }
 
                 std::streamsize size = file.tellg();
@@ -253,9 +253,9 @@ int main(int argc, char** argv) {
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse("200", std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
                 } else {
-                    return create_error_resp("500");
+                    return make_error_resp(500);
                 }
             },
             true,

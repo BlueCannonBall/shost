@@ -201,10 +201,10 @@ int main(int argc, char** argv) {
                         ss << "<html>";
                         ss << "<head>";
                         ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
-                        ss << "<title>Directory listing for " << pw::escape_html(req.target) << "</title>";
+                        ss << "<title>Directory listing for " << pw::escape_xml(req.target) << "</title>";
                         ss << "</head>";
                         ss << "<body>";
-                        ss << "<h1>Directory listing for " << pw::escape_html(req.target) << "</h1>";
+                        ss << "<h1>Directory listing for " << pw::escape_xml(req.target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             struct stat s;
@@ -213,9 +213,9 @@ int main(int argc, char** argv) {
                                 continue;
                             }
                             if (S_ISDIR(s.st_mode))
-                                ss << "<li><a href=\"" << pw::escape_html(entry) << "/\">" << pw::escape_html(entry) << "/</a></li>";
+                                ss << "<li><a href=\"" << pw::escape_xml(entry) << "/\">" << pw::escape_xml(entry) << "/</a></li>";
                             else
-                                ss << "<li><a href=\"" << pw::escape_html(entry) << "\">" << pw::escape_html(entry) << "</a></li>";
+                                ss << "<li><a href=\"" << pw::escape_xml(entry) << "\">" << pw::escape_xml(entry) << "</a></li>";
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";

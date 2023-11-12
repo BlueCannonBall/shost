@@ -14,10 +14,18 @@
 #include <sys/types.h>
 #include <vector>
 
-#define CACHE_CONTROL \
+#define CACHE_CONTROL_HEADER \
     { "Cache-Control", "public, no-cache" }
-#define ACCESS_CONTROL_ALLOW_ORIGIN \
+#define ACCESS_CONTROL_ALLOW_ORIGIN_HEADER \
     { "Access-Control-Allow-Origin", "*" }
+#define CROSS_ORIGIN_OPENER_POLICY_HEADER \
+    { "Cross-Origin-Opener-Policy", "same-origin" }
+#define CROSS_ORIGIN_EMBEDDER_POLICY_HEADER \
+    { "Cross-Origin-Embedder-Policy", "require-corp" }
+#define BASE_HEADERS CACHE_CONTROL_HEADER,               \
+                     ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, \
+                     CROSS_ORIGIN_OPENER_POLICY_HEADER,  \
+                     CROSS_ORIGIN_EMBEDDER_POLICY_HEADER
 
 namespace po = boost::program_options;
 
@@ -64,18 +72,11 @@ pw::HTTPResponse make_error_resp(uint16_t status_code) {
     ss << "</body>";
     ss << "</html>";
     ss << std::endl;
-    return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}});
+    return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
 }
 
 pw::HTTPResponse make_error_resp(uint16_t status_code, pw::HTTPHeaders headers) {
     pw::HTTPResponse resp = make_error_resp(status_code);
-
-    if (!headers.count("Cache-Control")) {
-        headers.insert(CACHE_CONTROL);
-    }
-    if (!headers.count("Access-Control-Allow-Origin")) {
-        headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN);
-    }
 
     for (const auto& header : headers) {
         if (!resp.headers.count(header.first)) {
@@ -221,25 +222,25 @@ int main(int argc, char** argv) {
                         ss << "</body>";
                         ss << "</html>";
                         ss << std::endl;
-                        return pw::HTTPResponse(200, ss.str(), {{"Content-Type", "text/html"}});
+                        return pw::HTTPResponse(200, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
                     }
                 }
 
                 pw::HTTPHeaders::const_iterator if_modified_since_it;
                 if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
-                    return pw::HTTPResponse(304, {CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(304, {BASE_HEADERS});
                 }
 
                 ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
                 if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
-                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, BASE_HEADERS});
                 }
                 r_lock.unlock();
 
                 std::ifstream file(filename, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) {
-                    return make_error_resp(500);
+                    return make_error_resp(500, {BASE_HEADERS});
                 }
 
                 std::streamsize size = file.tellg();
@@ -253,7 +254,7 @@ int main(int argc, char** argv) {
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, CACHE_CONTROL, ACCESS_CONTROL_ALLOW_ORIGIN});
+                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, BASE_HEADERS});
                 } else {
                     return make_error_resp(500);
                 }

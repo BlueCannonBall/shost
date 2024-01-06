@@ -40,20 +40,24 @@ struct CacheEntry {
 
 std::string sockaddr_to_string(const struct sockaddr* addr) {
     std::string ret;
-
     switch (addr->sa_family) {
-    case AF_INET:
-        pn::inet_ntop(AF_INET, &((struct sockaddr_in*) addr)->sin_addr, ret);
+    case AF_INET: {
+        struct sockaddr_in inet_addr;
+        memcpy(&inet_addr, addr, sizeof inet_addr);
+        pn::inet_ntop(AF_INET, &inet_addr.sin_addr, ret);
         break;
-
-    case AF_INET6:
-        pn::inet_ntop(AF_INET6, &((struct sockaddr_in6*) addr)->sin6_addr, ret);
-        break;
-
-    default:
-        return "Unknown AF";
     }
 
+    case AF_INET6: {
+        struct sockaddr_in6 inet6_addr;
+        memcpy(&inet6_addr, addr, sizeof inet6_addr);
+        pn::inet_ntop(AF_INET6, &inet6_addr.sin6_addr, ret);
+        break;
+    }
+
+    default:
+        return "Unknown address family";
+    }
     return ret;
 }
 
@@ -77,13 +81,11 @@ pw::HTTPResponse make_error_resp(uint16_t status_code) {
 
 pw::HTTPResponse make_error_resp(uint16_t status_code, pw::HTTPHeaders headers) {
     pw::HTTPResponse resp = make_error_resp(status_code);
-
     for (const auto& header : headers) {
         if (!resp.headers.count(header.first)) {
             resp.headers.insert(std::move(header));
         }
     }
-
     return resp;
 }
 

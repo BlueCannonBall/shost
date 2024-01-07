@@ -240,13 +240,13 @@ int main(int argc, char** argv) {
                 }
                 r_lock.unlock();
 
-                std::ifstream file(filename, std::ios::binary | std::ios::ate);
+                std::ifstream file(filename, std::ifstream::binary | std::ifstream::ate);
                 if (!file.is_open()) {
                     return make_error_resp(500, {BASE_HEADERS});
                 }
 
                 std::streamsize size = file.tellg();
-                file.seekg(0, std::ios::beg);
+                file.seekg(0, std::ifstream::beg);
 
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {

@@ -8,66 +8,66 @@ default: shost
 .PHONY: default
 
 obj/main.o: ./main.cpp ./Polyweb/mimetypes.hpp ./Polyweb/string.hpp ./Polyweb/polyweb.hpp ./Polyweb/Polynet/polynet.hpp ./Polyweb/Polynet/secure_sockets.hpp ./Polyweb/Polynet/smart_sockets.hpp ./Polyweb/threadpool.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/server.o: Polyweb/server.cpp Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/client.o: Polyweb/client.cpp Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/string.o: Polyweb/string.cpp Polyweb/string.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/polyweb.o: Polyweb/polyweb.cpp Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/websocket.o: Polyweb/websocket.cpp Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/secure_sockets.o: Polyweb/Polynet/secure_sockets.cpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/polynet.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 obj/polynet.o: Polyweb/Polynet/polynet.cpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/secure_sockets.hpp
-	@echo -e '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...'
+	@printf '\033[1m[POLYBUILD]\033[0m Compiling $@ from $<...\n'
 	@mkdir -p obj
 	@$(compiler) -c $< $(compilation_flags) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished compiling $@ from $<!\n'
 
 shost: obj/main.o obj/server.o obj/client.o obj/string.o obj/polyweb.o obj/websocket.o obj/secure_sockets.o obj/polynet.o
-	@echo -e '\033[1m[POLYBUILD]\033[0m Building $@...'
+	@printf '\033[1m[POLYBUILD]\033[0m Building $@...\n'
 	@$(compiler) $^ $(compilation_flags) $(libraries) -o $@
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished building $@!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished building $@!\n'
 
 clean:
-	@echo -e '\033[1m[POLYBUILD]\033[0m Deleting shost and obj...'
+	@printf '\033[1m[POLYBUILD]\033[0m Deleting shost and obj...\n'
 	@rm -rf shost obj
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished deleting shost and obj!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished deleting shost and obj!\n'
 .PHONY: clean
 
 install:
-	@echo -e '\033[1m[POLYBUILD]\033[0m Copying shost to /usr/local/bin...'
+	@printf '\033[1m[POLYBUILD]\033[0m Copying shost to /usr/local/bin...\n'
 	@cp shost /usr/local/bin
-	@echo -e '\033[1m[POLYBUILD]\033[0m Finished copying shost to /usr/local/bin!'
+	@printf '\033[1m[POLYBUILD]\033[0m Finished copying shost to /usr/local/bin!\n'
 .PHONY: install

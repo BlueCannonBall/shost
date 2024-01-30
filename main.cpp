@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     }
 
     pn::init(true);
-    pn::UniqueSock<pw::Server> server;
+    pn::UniqueSocket<pw::Server> server;
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 

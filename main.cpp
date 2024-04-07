@@ -18,14 +18,8 @@
     { "Cache-Control", "public, no-cache" }
 #define ACCESS_CONTROL_ALLOW_ORIGIN_HEADER \
     { "Access-Control-Allow-Origin", "*" }
-#define CROSS_ORIGIN_OPENER_POLICY_HEADER \
-    { "Cross-Origin-Opener-Policy", "same-origin" }
-#define CROSS_ORIGIN_EMBEDDER_POLICY_HEADER \
-    { "Cross-Origin-Embedder-Policy", "require-corp" }
-#define BASE_HEADERS CACHE_CONTROL_HEADER,               \
-                     ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, \
-                     CROSS_ORIGIN_OPENER_POLICY_HEADER,  \
-                     CROSS_ORIGIN_EMBEDDER_POLICY_HEADER
+#define BASE_HEADERS CACHE_CONTROL_HEADER, \
+                     ACCESS_CONTROL_ALLOW_ORIGIN_HEADER
 
 namespace po = boost::program_options;
 
@@ -176,8 +170,9 @@ int main(int argc, char** argv) {
                     while ((entry = readdir(dir))) {
                         std::string string_entry_name(entry->d_name);
 
-                        if (string_entry_name == "." || string_entry_name == "..")
+                        if (string_entry_name == "." || string_entry_name == "..") {
                             continue;
+                        }
 
                         if (string_entry_name == "index.html" || string_entry_name == "index.htm") {
                             index_found = true;

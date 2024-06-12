@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET" && req.method != "HEAD") {
-                    return make_error_resp(405, {{"Allow", "GET"}});
+                    return make_error_resp(405, {{"Allow", "GET, HEAD"}});
                 }
 
                 std::vector<std::string> split_req_target = pw::string::split(req.target, '/');

@@ -73,11 +73,11 @@ pw::HTTPResponse make_error_resp(uint16_t status_code) {
     return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
 }
 
-pw::HTTPResponse make_error_resp(uint16_t status_code, pw::HTTPHeaders headers) {
+pw::HTTPResponse make_error_resp(uint16_t status_code, const pw::HTTPHeaders& headers) {
     pw::HTTPResponse resp = make_error_resp(status_code);
     for (const auto& header : headers) {
         if (!resp.headers.count(header.first)) {
-            resp.headers.insert(std::move(header));
+            resp.headers.insert(header);
         }
     }
     return resp;
@@ -143,8 +143,8 @@ int main(int argc, char** argv) {
 
                 std::string filename = root_dir_path + req.target;
 
-                struct stat s;
-                if (stat(filename.c_str(), &s) == -1) {
+                struct stat stat_result;
+                if (stat(filename.c_str(), &stat_result) == -1) {
                     if (errno == ENOENT || errno == ENOTDIR) {
                         return make_error_resp(404);
                     } else {
@@ -153,13 +153,13 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                if (S_ISDIR(s.st_mode)) {
+                if (S_ISDIR(stat_result.st_mode)) {
                     if (req.target.back() != '/') {
                         return make_error_resp(301, {{"Location", req.target + '/'}});
                     }
 
                     DIR* dir;
-                    if ((dir = opendir(filename.c_str())) == NULL) {
+                    if (!(dir = opendir(filename.c_str()))) {
                         std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
                         return make_error_resp(500);
                     }
@@ -168,16 +168,16 @@ int main(int argc, char** argv) {
                     std::set<std::string> entries;
                     bool index_found = false;
                     while ((entry = readdir(dir))) {
-                        std::string string_entry_name(entry->d_name);
+                        std::string entry_name_string(entry->d_name);
 
-                        if (string_entry_name == "." || string_entry_name == "..") {
+                        if (entry_name_string == "." || entry_name_string == "..") {
                             continue;
                         }
 
-                        if (string_entry_name == "index.html" || string_entry_name == "index.htm") {
+                        if (entry_name_string == "index.html" || entry_name_string == "index.htm") {
                             index_found = true;
-                            filename += string_entry_name;
-                            if (stat(filename.c_str(), &s) == -1) {
+                            filename += entry_name_string;
+                            if (stat(filename.c_str(), &stat_result) == -1) {
                                 if (errno == ENOENT || errno == ENOTDIR) {
                                     return make_error_resp(404);
                                 } else {
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
                             break;
                         }
 
-                        entries.insert(std::move(string_entry_name));
+                        entries.insert(entry_name_string);
                     }
 
                     closedir(dir);
@@ -224,14 +224,14 @@ int main(int argc, char** argv) {
                 }
 
                 pw::HTTPHeaders::const_iterator if_modified_since_it;
-                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == s.st_mtime) {
+                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == stat_result.st_mtime) {
                     return pw::HTTPResponse(304, {BASE_HEADERS});
                 }
 
                 ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
-                if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == s.st_mtime) {
-                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, BASE_HEADERS});
+                if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == stat_result.st_mtime) {
+                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(stat_result.st_mtime)}, BASE_HEADERS});
                 }
                 r_lock.unlock();
 
@@ -247,11 +247,11 @@ int main(int argc, char** argv) {
                 if (file.read(content.data(), size)) {
                     WriteLock w_lock(cache_lock);
                     cache[filename] = CacheEntry {
-                        .last_modified = s.st_mtime,
+                        .last_modified = stat_result.st_mtime,
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(s.st_mtime)}, BASE_HEADERS});
+                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(stat_result.st_mtime)}, BASE_HEADERS});
                 } else {
                     return make_error_resp(500);
                 }

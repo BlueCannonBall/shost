@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
                         ss << "<h1>Directory listing for " << pw::xml_escape(req.target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
-                            if (std::filesystem::is_directory(entry)) {
+                            if (std::filesystem::is_directory(path / entry)) {
                                 ss << "<li><a href=\"" << pw::xml_escape(entry) << "/\">" << pw::xml_escape(entry) << "/</a></li>";
                             } else {
                                 ss << "<li><a href=\"" << pw::xml_escape(entry) << "\">" << pw::xml_escape(entry) << "</a></li>";

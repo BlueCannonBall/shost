@@ -119,7 +119,7 @@ int main(int argc, char* argv[]) {
 
     pn::init(true);
     pn::UniqueSocket<pw::Server> server;
-    std::unordered_map<std::filesystem::path, CacheEntry> cache;
+    std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
     server->on_error = (pw::HTTPResponse(*)(uint16_t)) & make_error_resp;
@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
                         return make_error_resp(301, {{"Location", req.target + '/'}});
                     }
 
-                    std::set<std::filesystem::path> entries;
+                    std::set<std::string> entries;
                     bool index_found = false;
                     for (const auto& entry : std::filesystem::directory_iterator(path)) {
                         auto entry_path = entry.path();
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
                             index_found = true;
                             path /= entry_path;
                         }
-                        entries.insert(entry_path);
+                        entries.insert(entry_filename);
                     }
 
                     if (!index_found) {
@@ -177,9 +177,9 @@ int main(int argc, char* argv[]) {
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             if (std::filesystem::is_directory(entry)) {
-                                ss << "<li><a href=\"" << pw::xml_escape(entry.filename().string()) << "/\">" << pw::xml_escape(entry.filename().string()) << "/</a></li>";
+                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "/\">" << pw::xml_escape(entry) << "/</a></li>";
                             } else {
-                                ss << "<li><a href=\"" << pw::xml_escape(entry.filename().string()) << "\">" << pw::xml_escape(entry.filename().string()) << "</a></li>";
+                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "\">" << pw::xml_escape(entry) << "</a></li>";
                             }
                         }
                         ss << "</ul><hr>";

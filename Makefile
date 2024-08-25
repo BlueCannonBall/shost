@@ -16,7 +16,7 @@ libraries := -lboost_program_options -lboost_thread -lssl -lcrypto
 
 ifeq ($(OS),Darwin)
 	compilation_flags := -Wall -std=c++17 -O3 -pthread
-	libraries := -lboost_program_options-mt -lboost_thread-mt -lssl -lcrypto -lws2_32
+	libraries := -lboost_program_options-mt -lboost_thread-mt -lssl -lcrypto
 endif
 
 ifeq ($(OS),Windows_NT)

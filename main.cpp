@@ -3,15 +3,14 @@
 #include <boost/program_options.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/shared_mutex.hpp>
-#include <cstring>
-#include <ctime>
-#include <dirent.h>
+#include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <string.h>
+#include <time.h>
 #include <vector>
 
 #define CACHE_CONTROL_HEADER \
@@ -88,14 +87,14 @@ void print_help(po::options_description& desc, char* prog_name) {
               << desc;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
     po::options_description desc("Options");
     po::positional_options_description p;
     po::variables_map vm;
 
     std::string port;
     std::string bind_address;
-    std::string root_dir_path;
+    std::filesystem::path root_dir_path;
 
     desc.add_options()("help,h", "Show this help message and exit")("port,p", po::value(&port)->default_value("8000"), "Specify alternate port")("bind,b", po::value(&bind_address)->default_value("0.0.0.0"), "Specify alternate bind address")("directory,d", po::value(&root_dir_path)->default_value("."), "Specify alternative directory");
     p.add("port", 1);
@@ -120,7 +119,7 @@ int main(int argc, char** argv) {
 
     pn::init(true);
     pn::UniqueSocket<pw::Server> server;
-    std::unordered_map<std::string, CacheEntry> cache;
+    std::unordered_map<std::filesystem::path, CacheEntry> cache;
     Lock cache_lock;
 
     server->on_error = (pw::HTTPResponse(*)(uint16_t)) & make_error_resp;
@@ -141,57 +140,29 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                std::string filename = root_dir_path + req.target;
-
-                struct stat stat_result;
-                if (stat(filename.c_str(), &stat_result) == -1) {
-                    if (errno == ENOENT || errno == ENOTDIR) {
-                        return make_error_resp(404);
-                    } else {
-                        std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                        return make_error_resp(500);
-                    }
+                auto path = root_dir_path / std::filesystem::path(req.target.substr(1));
+                if (!std::filesystem::exists(path)) {
+                    return make_error_resp(404);
                 }
 
-                if (S_ISDIR(stat_result.st_mode)) {
+                if (std::filesystem::is_directory(path)) {
                     if (req.target.back() != '/') {
                         return make_error_resp(301, {{"Location", req.target + '/'}});
                     }
 
-                    DIR* dir;
-                    if (!(dir = opendir(filename.c_str()))) {
-                        std::cerr << "Error: opendir failed: " << strerror(errno) << std::endl;
-                        return make_error_resp(500);
-                    }
-
-                    struct dirent* entry;
-                    std::set<std::string> entries;
+                    std::set<std::filesystem::path> entries;
                     bool index_found = false;
-                    while ((entry = readdir(dir))) {
-                        std::string entry_name_string(entry->d_name);
-
-                        if (entry_name_string == "." || entry_name_string == "..") {
+                    for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                        auto entry_path = entry.path();
+                        auto entry_filename = entry_path.filename();
+                        if (entry_filename == "." || entry_filename == "..") {
                             continue;
-                        }
-
-                        if (entry_name_string == "index.html" || entry_name_string == "index.htm") {
+                        } else if (entry_filename == "index.html" || entry_filename == "index.htm") {
                             index_found = true;
-                            filename += entry_name_string;
-                            if (stat(filename.c_str(), &stat_result) == -1) {
-                                if (errno == ENOENT || errno == ENOTDIR) {
-                                    return make_error_resp(404);
-                                } else {
-                                    std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                                    return make_error_resp(500);
-                                }
-                            }
-                            break;
+                            path /= entry_path;
                         }
-
-                        entries.insert(entry_name_string);
+                        entries.insert(entry_path);
                     }
-
-                    closedir(dir);
 
                     if (!index_found) {
                         std::ostringstream ss;
@@ -205,15 +176,11 @@ int main(int argc, char** argv) {
                         ss << "<h1>Directory listing for " << pw::xml_escape(req.target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
-                            struct stat s;
-                            if (stat((filename + entry).c_str(), &s) == -1) {
-                                std::cerr << "Error: stat failed: " << strerror(errno) << std::endl;
-                                continue;
+                            if (std::filesystem::is_directory(entry)) {
+                                ss << "<li><a href=\"" << pw::xml_escape(entry.filename().string()) << "/\">" << pw::xml_escape(entry.filename().string()) << "/</a></li>";
+                            } else {
+                                ss << "<li><a href=\"" << pw::xml_escape(entry.filename().string()) << "\">" << pw::xml_escape(entry.filename().string()) << "</a></li>";
                             }
-                            if (S_ISDIR(s.st_mode))
-                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "/\">" << pw::xml_escape(entry) << "/</a></li>";
-                            else
-                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "\">" << pw::xml_escape(entry) << "</a></li>";
                         }
                         ss << "</ul><hr>";
                         ss << "</body>";
@@ -223,19 +190,23 @@ int main(int argc, char** argv) {
                     }
                 }
 
+                time_t last_modified = std::chrono::system_clock::to_time_t(std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                    std::filesystem::last_write_time(path) - std::filesystem::file_time_type::clock::now() +
+                    std::chrono::system_clock::now()));
+
                 pw::HTTPHeaders::const_iterator if_modified_since_it;
-                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == stat_result.st_mtime) {
+                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == last_modified) {
                     return pw::HTTPResponse(304, {BASE_HEADERS});
                 }
 
                 ReadLock r_lock(cache_lock);
                 decltype(cache)::const_iterator cache_entry_it;
-                if ((cache_entry_it = cache.find(filename)) != cache.end() && cache_entry_it->second.last_modified == stat_result.st_mtime) {
-                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(stat_result.st_mtime)}, BASE_HEADERS});
+                if ((cache_entry_it = cache.find(path)) != cache.end() && cache_entry_it->second.last_modified == last_modified) {
+                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 }
                 r_lock.unlock();
 
-                std::ifstream file(filename, std::ifstream::binary | std::ifstream::ate);
+                std::ifstream file(path, std::ifstream::binary | std::ifstream::ate);
                 if (!file.is_open()) {
                     return make_error_resp(500, {BASE_HEADERS});
                 }
@@ -246,12 +217,12 @@ int main(int argc, char** argv) {
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
                     WriteLock w_lock(cache_lock);
-                    cache[filename] = CacheEntry {
-                        .last_modified = stat_result.st_mtime,
+                    cache[path] = CacheEntry {
+                        .last_modified = last_modified,
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(filename)}, {"Last-Modified", pw::build_date(stat_result.st_mtime)}, BASE_HEADERS});
+                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 } else {
                     return make_error_resp(500);
                 }

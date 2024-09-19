@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 
     server->route("/",
         pw::SecureHTTPRoute {
-            [&root_dir_path, &cache, &cache_lock](const pw::Connection& conn, const pw::HTTPRequest& req, void*) {
+            [&root_dir_path, &cache, &cache_lock](const pw::SecureConnection& conn, const pw::HTTPRequest& req, void*) {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET" && req.method != "HEAD") {

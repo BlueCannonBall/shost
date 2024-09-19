@@ -95,8 +95,18 @@ int main(int argc, char* argv[]) {
     std::string port;
     std::string bind_address;
     std::filesystem::path root_dir_path;
+    std::string certificate_chain_file;
+    std::string private_key_file;
 
-    desc.add_options()("help,h", "Show this help message and exit")("port,p", po::value(&port)->default_value("8000"), "Specify alternate port")("bind,b", po::value(&bind_address)->default_value("0.0.0.0"), "Specify alternate bind address")("directory,d", po::value(&root_dir_path)->default_value("."), "Specify alternative directory");
+    // clang-format off
+    desc.add_options()
+        ("help,h", "Show this help message and exit")
+        ("port,p", po::value(&port)->default_value("8000"), "Specify alternate port")
+        ("bind,b", po::value(&bind_address)->default_value("0.0.0.0"), "Specify alternate bind address")
+        ("directory,d", po::value(&root_dir_path)->default_value("."), "Specify alternative directory")
+        ("certificate-chain-file,c", po::value(&certificate_chain_file), "Specify certificate chain file, enabling TLS")
+        ("private-key-file,k", po::value(&private_key_file), "Specify private key file, enabling TLS");
+    // clang-format on
     p.add("port", 1);
 
     try {
@@ -118,14 +128,14 @@ int main(int argc, char* argv[]) {
     }
 
     pn::init(true);
-    pn::UniqueSocket<pw::Server> server;
+    pn::UniqueSocket<pw::SecureServer> server;
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
     server->on_error = (pw::HTTPResponse(*)(uint16_t)) & make_error_resp;
 
     server->route("/",
-        pw::HTTPRoute {
+        pw::SecureHTTPRoute {
             [&root_dir_path, &cache, &cache_lock](const pw::Connection& conn, const pw::HTTPRequest& req, void*) {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
@@ -236,7 +246,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
+    if (!certificate_chain_file.empty() && !private_key_file.empty()) {
+        if (server->ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
+            std::cerr << "Error: " << pn::universal_strerror() << std::endl;
+            return 1;
+        }
+        std::cout << "Serving HTTPS on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
+    } else {
+        std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
+    }
+
     if (server->listen() == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;

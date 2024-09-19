@@ -251,7 +251,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error: " << pn::universal_strerror() << std::endl;
             return 1;
         }
-        std::cout << "Serving HTTPS on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
+        std::cout << "Serving HTTPS on " << bind_address << " port " << port << " (https://" << bind_address << ':' << port << "/) ..." << std::endl;
     } else {
         std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
     }

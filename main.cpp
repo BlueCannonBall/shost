@@ -31,6 +31,25 @@ struct CacheEntry {
     std::vector<char> content;
 };
 
+void configure_socket(pn::Socket& socket) {
+#ifdef _WIN32
+    DWORD send_timeout = 60'000;
+    DWORD recv_timeout = 60'000;
+#else
+    struct timeval send_timeout;
+    send_timeout.tv_sec = 60;
+    send_timeout.tv_usec = 0;
+    struct timeval recv_timeout;
+    recv_timeout.tv_sec = 60;
+    recv_timeout.tv_usec = 0;
+#endif
+    socket.setsockopt(SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof send_timeout);
+    socket.setsockopt(SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof recv_timeout);
+
+    int tcp_keep_alive = 1;
+    socket.setsockopt(SOL_SOCKET, SO_KEEPALIVE, &tcp_keep_alive, sizeof(int));
+}
+
 std::string sockaddr_to_string(const struct sockaddr* addr) {
     std::string ret;
     switch (addr->sa_family) {
@@ -246,6 +265,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    configure_socket(*server);
+
     if (!certificate_chain_file.empty() && !private_key_file.empty()) {
         if (server->ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
             std::cerr << "Error: " << pn::universal_strerror() << std::endl;
@@ -256,7 +277,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
     }
 
-    if (server->listen() == PN_ERROR) {
+    if (server->listen([](pn::tcp::SecureConnection& conn, void*) {
+            configure_socket(conn);
+            return false;
+        }) == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return 1;
     }

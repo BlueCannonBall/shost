@@ -265,8 +265,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    configure_socket(*server);
-
     if (!certificate_chain_file.empty() && !private_key_file.empty()) {
         if (server->ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
             std::cerr << "Error: " << pn::universal_strerror() << std::endl;

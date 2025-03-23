@@ -12,16 +12,16 @@ endif
 
 compiler := $(CXX)
 compilation_flags := -Wall -std=c++17 -O3 -pthread
-libraries := -lboost_program_options -lboost_thread -lssl -lcrypto
+libraries := -lboost_program_options -lssl -lcrypto
 
 ifeq ($(OS),Darwin)
 	compilation_flags := -Wall -std=c++17 -O3 -pthread
-	libraries := -lboost_program_options-mt -lboost_thread-mt -lssl -lcrypto
+	libraries := -lboost_program_options-mt -lssl -lcrypto
 endif
 
 ifeq ($(OS),Windows_NT)
 	compilation_flags := -Wall -std=c++17 -O3 -pthread
-	libraries := -lboost_program_options -lboost_thread -lssl -lcrypto -lws2_32
+	libraries := -lboost_program_options -lssl -lcrypto -lws2_32
 endif
 
 default: shost$(out_ext)

@@ -1,30 +1,30 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
 #include <boost/program_options.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/thread/shared_mutex.hpp>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <set>
+#include <shared_mutex>
 #include <sstream>
 #include <string.h>
 #include <time.h>
 #include <vector>
 
 #define CACHE_CONTROL_HEADER \
-    { "Cache-Control", "public, no-cache" }
+    {"Cache-Control", "public, no-cache"}
 #define ACCESS_CONTROL_ALLOW_ORIGIN_HEADER \
-    { "Access-Control-Allow-Origin", "*" }
+    {"Access-Control-Allow-Origin", "*"}
 #define BASE_HEADERS CACHE_CONTROL_HEADER, \
                      ACCESS_CONTROL_ALLOW_ORIGIN_HEADER
 
 namespace po = boost::program_options;
 
-typedef boost::shared_mutex Lock;
-typedef boost::unique_lock<Lock> WriteLock;
-typedef boost::shared_lock<Lock> ReadLock;
+typedef std::shared_mutex Lock;
+typedef std::unique_lock<Lock> WriteLock;
+typedef std::shared_lock<Lock> ReadLock;
 
 struct CacheEntry {
     time_t last_modified;
@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server->on_error = (pw::HTTPResponse(*)(uint16_t)) & make_error_resp;
+    server->on_error = (pw::HTTPResponse(*)(uint16_t)) &make_error_resp;
 
     server->route("/",
         pw::SecureHTTPRoute {
@@ -223,14 +223,12 @@ int main(int argc, char* argv[]) {
                     std::filesystem::last_write_time(path) - std::filesystem::file_time_type::clock::now() +
                     std::chrono::system_clock::now()));
 
-                pw::HTTPHeaders::const_iterator if_modified_since_it;
-                if ((if_modified_since_it = req.headers.find("If-Modified-Since")) != req.headers.end() && pw::parse_date(if_modified_since_it->second) == last_modified) {
+                if (auto if_modified_since_it = req.headers.find("If-Modified-Since"); if_modified_since_it != req.headers.end() && pw::parse_date(if_modified_since_it->second) == last_modified) {
                     return pw::HTTPResponse(304, {BASE_HEADERS});
                 }
 
                 ReadLock r_lock(cache_lock);
-                decltype(cache)::const_iterator cache_entry_it;
-                if ((cache_entry_it = cache.find(path)) != cache.end() && cache_entry_it->second.last_modified == last_modified) {
+                if (auto cache_entry_it = cache.find(path); cache_entry_it != cache.end() && cache_entry_it->second.last_modified == last_modified) {
                     return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 }
                 r_lock.unlock();

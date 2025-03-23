@@ -6,10 +6,10 @@ install = "/usr/local/bin"
 
 [options]
 compilation-flags = "-Wall -std=c++17 -O3 -pthread"
-libraries = ["boost_program_options", "boost_thread", "ssl", "crypto"]
+libraries = ["boost_program_options", "ssl", "crypto"]
 
 [env.OS.Windows_NT.options]
-libraries = ["boost_program_options", "boost_thread", "ssl", "crypto", "ws2_32"]
+libraries = ["boost_program_options", "ssl", "crypto", "ws2_32"]
 
 [env.OS.Darwin.options]
-libraries = ["boost_program_options-mt", "boost_thread-mt", "ssl", "crypto"]
+libraries = ["boost_program_options-mt", "ssl", "crypto"]

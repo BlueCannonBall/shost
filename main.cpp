@@ -187,8 +187,9 @@ int main(int argc, char* argv[]) {
                         if (entry_filename == "." || entry_filename == "..") {
                             continue;
                         } else if (entry_filename == "index.html" || entry_filename == "index.htm") {
+                            path = entry_path;
                             index_found = true;
-                            path /= entry_path;
+                            break;
                         }
                         entries.insert(entry_filename);
                     }

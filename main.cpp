@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
                             index_found = true;
                             break;
                         }
-                        entries.insert(entry_filename);
+                        entries.insert(entry_filename.generic_string());
                     }
 
                     if (!index_found) {
@@ -229,7 +229,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 ReadLock r_lock(cache_lock);
-                if (auto cache_entry_it = cache.find(path); cache_entry_it != cache.end() && cache_entry_it->second.last_modified == last_modified) {
+                if (auto cache_entry_it = cache.find(path.generic_string()); cache_entry_it != cache.end() && cache_entry_it->second.last_modified == last_modified) {
                     return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 }
                 r_lock.unlock();
@@ -245,7 +245,7 @@ int main(int argc, char* argv[]) {
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
                     WriteLock w_lock(cache_lock);
-                    cache[path] = CacheEntry {
+                    cache[path.generic_string()] = CacheEntry {
                         .last_modified = last_modified,
                         .content = content,
                     };

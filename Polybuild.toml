@@ -8,8 +8,11 @@ install = "/usr/local/bin"
 compilation-flags = "-Wall -std=c++17 -O3 -pthread"
 libraries = ["boost_program_options", "ssl", "crypto"]
 
+# [env.OS.Windows_NT.paths]
+# library = ["\"$(OPENSSL_ROOT_DIR)\"/lib/VC/x64/MD"]
+
 # [env.OS.Windows_NT.options]
-# compilation-flags = "/W3 /std:c++20 /EHsc /Ox"
+# compilation-flags = "/W3 /std:c++20 /EHsc /I\"$(OPENSSL_ROOT_DIR)\"/include /Ox"
 # libraries = ["boost_program_options-mt.lib", "libssl.lib", "libcrypto.lib", "ws2_32.lib"]
 
 [env.OS.Darwin.options]

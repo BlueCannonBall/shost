@@ -8,8 +8,9 @@ install = "/usr/local/bin"
 compilation-flags = "-Wall -std=c++17 -O3 -pthread"
 libraries = ["boost_program_options", "ssl", "crypto"]
 
-[env.OS.Windows_NT.options]
-libraries = ["boost_program_options-mt", "ssl", "crypto", "ws2_32"]
+# [env.OS.Windows_NT.options]
+# compilation-flags = "/W3 /std:c++20 /EHsc /Ox"
+# libraries = ["boost_program_options-mt.lib", "libssl.lib", "libcrypto.lib", "ws2_32.lib"]
 
 [env.OS.Darwin.options]
 libraries = ["boost_program_options-mt", "ssl", "crypto"]

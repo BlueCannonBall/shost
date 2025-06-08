@@ -14,7 +14,7 @@ install = "C:\\Windows\\System32"
 
 [env.OS.Windows_NT.options]
 compilation-flags = "/W3 /std:c++20 /EHsc /I\"$(BOOST_ROOT)\" /I\"$(OPENSSL_ROOT_DIR)\"/include /Ox"
-libraries = ["libboost_program_options-vc143-mt-x64-1_88.lib", "libssl.lib", "libcrypto.lib", "advapi32.lib", "crypt32.lib", "ws2_32.lib", "user32.lib"]
+libraries = ["libssl.lib", "libcrypto.lib", "advapi32.lib", "crypt32.lib", "ws2_32.lib", "user32.lib"]
 
 [env.OS.Darwin.options]
 libraries = ["boost_program_options-mt", "ssl", "crypto"]

@@ -34,3 +34,5 @@
 # Custom
 shost
 obj/
+.cache/
+compile_commands.json

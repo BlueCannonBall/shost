@@ -32,7 +32,7 @@ libraries := $(library_flag)boost_program_options $(library_flag)ssl $(library_f
 prefix := /usr/local/bin
 
 ifeq ($(OS),Windows_NT)
-	compilation_flags := /W3 /std:c++20 /EHsc /I"$(BOOST_ROOT)" /I"$(OPENSSL_ROOT_DIR)"/include /Ox $(dynamic_flag)
+	compilation_flags := /W3 /std:c++20 /EHsc /I"$(BOOST_ROOT)" /I"$(OPENSSL_ROOT_DIR)"/include /O2 $(dynamic_flag)
 	link_time_flags := $(LDFLAGS) $(library_path_flag)"$(BOOST_ROOT)"/stage/lib $(library_path_flag)"$(OPENSSL_ROOT_DIR)"/lib
 	libraries := $(library_flag)libssl.lib $(library_flag)libcrypto.lib $(library_flag)advapi32.lib $(library_flag)crypt32.lib $(library_flag)ws2_32.lib $(library_flag)user32.lib
 	prefix := C:\Windows\System32

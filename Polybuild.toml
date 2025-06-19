@@ -13,7 +13,7 @@ library = ["\"$(BOOST_ROOT)\"/stage/lib", "\"$(OPENSSL_ROOT_DIR)\"/lib"]
 install = "C:\\Windows\\System32"
 
 [env.OS.Windows_NT.options]
-compilation-flags = "/W3 /std:c++20 /EHsc /I\"$(BOOST_ROOT)\" /I\"$(OPENSSL_ROOT_DIR)\"/include /Ox"
+compilation-flags = "/W3 /std:c++20 /EHsc /I\"$(BOOST_ROOT)\" /I\"$(OPENSSL_ROOT_DIR)\"/include /O2"
 libraries = ["libssl.lib", "libcrypto.lib", "advapi32.lib", "crypt32.lib", "ws2_32.lib", "user32.lib"]
 
 [env.OS.Darwin.options]

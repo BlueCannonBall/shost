@@ -164,26 +164,26 @@ int main(int argc, char* argv[]) {
                     return make_error_resp(405, {{"Allow", "GET, HEAD"}});
                 }
 
-                std::string relative_target = req.target;
-                relative_target.erase(relative_target.begin(), std::find_if_not(relative_target.begin(), relative_target.end(), [](char c) {
+                std::string safe_target = req.target;
+                safe_target.erase(safe_target.begin(), std::find_if_not(safe_target.begin(), safe_target.end(), [](char c) {
                     return c == '/';
                 }));
 
-                std::vector<std::string> split_target = pw::string::split(relative_target, '/');
+                std::vector<std::string> split_target = pw::string::split(safe_target, '/');
                 for (const auto& component : split_target) {
                     if (component == "..") {
                         return make_error_resp(400);
                     }
                 }
 
-                auto path = root_dir_path / std::filesystem::path(relative_target);
+                auto path = root_dir_path / std::filesystem::path(safe_target);
                 if (!std::filesystem::exists(path)) {
                     return make_error_resp(404);
                 }
 
                 if (std::filesystem::is_directory(path)) {
-                    if (!relative_target.empty() && relative_target.back() != '/') {
-                        return make_error_resp(301, {{"Location", '/' + relative_target + '/'}});
+                    if (!safe_target.empty() && safe_target.back() != '/') {
+                        return make_error_resp(301, {{"Location", '/' + safe_target + '/'}});
                     }
 
                     std::set<std::string> entries;
@@ -205,10 +205,10 @@ int main(int argc, char* argv[]) {
                         ss << "<html>";
                         ss << "<head>";
                         ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
-                        ss << "<title>Directory listing for " << pw::xml_escape('/' + relative_target) << "</title>";
+                        ss << "<title>Directory listing for " << pw::xml_escape('/' + safe_target) << "</title>";
                         ss << "</head>";
                         ss << "<body>";
-                        ss << "<h1>Directory listing for " << pw::xml_escape('/' + relative_target) << "</h1>";
+                        ss << "<h1>Directory listing for " << pw::xml_escape('/' + safe_target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             if (std::filesystem::is_directory(path / entry)) {

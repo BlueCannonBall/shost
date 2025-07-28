@@ -1,5 +1,6 @@
 #include "Polyweb/mimetypes.hpp"
 #include "Polyweb/polyweb.hpp"
+#include <algorithm>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <filesystem>
@@ -10,6 +11,7 @@
 #include <shared_mutex>
 #include <sstream>
 #include <string.h>
+#include <string>
 #include <time.h>
 #include <vector>
 
@@ -151,7 +153,7 @@ int main(int argc, char* argv[]) {
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server->on_error = (pw::HTTPResponse(*)(uint16_t)) &make_error_resp;
+    server->on_error = (pw::HTTPResponse (*)(uint16_t)) &make_error_resp;
 
     server->route("/",
         pw::SecureHTTPRoute {
@@ -162,21 +164,26 @@ int main(int argc, char* argv[]) {
                     return make_error_resp(405, {{"Allow", "GET, HEAD"}});
                 }
 
-                std::vector<std::string> split_req_target = pw::string::split(req.target, '/');
-                for (const auto& component : split_req_target) {
+                std::string relative_target = req.target;
+                relative_target.erase(relative_target.begin(), std::find_if_not(relative_target.begin(), relative_target.end(), [](char c) {
+                    return c == '/';
+                }));
+
+                std::vector<std::string> split_target = pw::string::split(relative_target, '/');
+                for (const auto& component : split_target) {
                     if (component == "..") {
                         return make_error_resp(400);
                     }
                 }
 
-                auto path = root_dir_path / std::filesystem::path(req.target.substr(1));
+                auto path = root_dir_path / std::filesystem::path(relative_target);
                 if (!std::filesystem::exists(path)) {
                     return make_error_resp(404);
                 }
 
                 if (std::filesystem::is_directory(path)) {
-                    if (req.target.back() != '/') {
-                        return make_error_resp(301, {{"Location", req.target + '/'}});
+                    if (!relative_target.empty() && relative_target.back() != '/') {
+                        return make_error_resp(301, {{"Location", '/' + relative_target + '/'}});
                     }
 
                     std::set<std::string> entries;
@@ -198,10 +205,10 @@ int main(int argc, char* argv[]) {
                         ss << "<html>";
                         ss << "<head>";
                         ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
-                        ss << "<title>Directory listing for " << pw::xml_escape(req.target) << "</title>";
+                        ss << "<title>Directory listing for " << pw::xml_escape('/' + relative_target) << "</title>";
                         ss << "</head>";
                         ss << "<body>";
-                        ss << "<h1>Directory listing for " << pw::xml_escape(req.target) << "</h1>";
+                        ss << "<h1>Directory listing for " << pw::xml_escape('/' + relative_target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             if (std::filesystem::is_directory(path / entry)) {

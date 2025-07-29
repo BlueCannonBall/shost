@@ -10,6 +10,7 @@
 #include <set>
 #include <shared_mutex>
 #include <sstream>
+#include <stdlib.h>
 #include <string.h>
 #include <string>
 #include <time.h>
@@ -136,15 +137,17 @@ int main(int argc, char* argv[]) {
 
         if (vm.count("help")) {
             print_help(desc, argv[0]);
-            return 0;
+            return EXIT_SUCCESS;
         }
+
+        root_dir_path = std::filesystem::canonical(root_dir_path);
     } catch (std::exception& e) {
         if (vm.count("help")) {
             print_help(desc, argv[0]);
-            return 0;
+            return EXIT_SUCCESS;
         } else {
             std::cerr << "Error: CLI error: " << e.what() << std::endl;
-            return 1;
+            return EXIT_FAILURE;
         }
     }
 
@@ -164,26 +167,22 @@ int main(int argc, char* argv[]) {
                     return make_error_resp(405, {{"Allow", "GET, HEAD"}});
                 }
 
-                std::string safe_target = req.target;
-                safe_target.erase(safe_target.begin(), std::find_if_not(safe_target.begin(), safe_target.end(), [](char c) {
-                    return c == '/';
+                std::string relative_target = req.target;
+                relative_target.erase(relative_target.begin(), std::find_if_not(relative_target.begin(), relative_target.end(), [](char c) {
+                    return c == '/' || c == '\\';
                 }));
+                std::string target = '/' + relative_target;
 
-                std::vector<std::string> split_target = pw::string::split(safe_target, '/');
-                for (const auto& component : split_target) {
-                    if (component == "..") {
-                        return make_error_resp(400);
-                    }
-                }
-
-                auto path = root_dir_path / std::filesystem::path(safe_target);
-                if (!std::filesystem::exists(path)) {
+                auto path = std::filesystem::weakly_canonical(root_dir_path / relative_target);
+                if (std::mismatch(root_dir_path.begin(), root_dir_path.end(), path.begin()).first != root_dir_path.end()) {
+                    return make_error_resp(400);
+                } else if (!std::filesystem::exists(path)) {
                     return make_error_resp(404);
                 }
 
                 if (std::filesystem::is_directory(path)) {
-                    if (!safe_target.empty() && safe_target.back() != '/') {
-                        return make_error_resp(301, {{"Location", '/' + safe_target + '/'}});
+                    if (target.back() != '/') {
+                        return make_error_resp(301, {{"Location", target + '/'}});
                     }
 
                     std::set<std::string> entries;
@@ -205,10 +204,10 @@ int main(int argc, char* argv[]) {
                         ss << "<html>";
                         ss << "<head>";
                         ss << "<meta http-equiv=\"Content-Type\" content=\"text/html\">";
-                        ss << "<title>Directory listing for " << pw::xml_escape('/' + safe_target) << "</title>";
+                        ss << "<title>Directory listing for " << pw::xml_escape(target) << "</title>";
                         ss << "</head>";
                         ss << "<body>";
-                        ss << "<h1>Directory listing for " << pw::xml_escape('/' + safe_target) << "</h1>";
+                        ss << "<h1>Directory listing for " << pw::xml_escape(target) << "</h1>";
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             if (std::filesystem::is_directory(path / entry)) {
@@ -266,13 +265,13 @@ int main(int argc, char* argv[]) {
 
     if (server->bind(bind_address, port) == PN_ERROR) {
         std::cerr << "Error: " << pn::universal_strerror() << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
     if (!certificate_chain_file.empty() && !private_key_file.empty()) {
         if (server->ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
             std::cerr << "Error: " << pn::universal_strerror() << std::endl;
-            return 1;
+            return EXIT_FAILURE;
         }
         std::cout << "Serving HTTPS on " << bind_address << " port " << port << " (https://" << bind_address << ':' << port << "/) ..." << std::endl;
     } else {
@@ -284,9 +283,9 @@ int main(int argc, char* argv[]) {
             return false;
         }) == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
     pn::quit();
-    return 0;
+    return EXIT_SUCCESS;
 }

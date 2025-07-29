@@ -211,9 +211,9 @@ int main(int argc, char* argv[]) {
                         ss << "<hr><ul>";
                         for (const auto& entry : entries) {
                             if (std::filesystem::is_directory(path / entry)) {
-                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "/\">" << pw::xml_escape(entry) << "/</a></li>";
+                                ss << "<li><a href=\"./" << pw::xml_escape(entry) << "/\">" << pw::xml_escape(entry) << "/</a></li>";
                             } else {
-                                ss << "<li><a href=\"" << pw::xml_escape(entry) << "\">" << pw::xml_escape(entry) << "</a></li>";
+                                ss << "<li><a href=\"./" << pw::xml_escape(entry) << "\">" << pw::xml_escape(entry) << "</a></li>";
                             }
                         }
                         ss << "</ul><hr>";

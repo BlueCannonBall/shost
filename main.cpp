@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
                 std::string target = '/' + relative_target;
 
                 auto path = std::filesystem::weakly_canonical(root_dir_path / relative_target);
-                if (std::mismatch(root_dir_path.begin(), root_dir_path.end(), path.begin()).first != root_dir_path.end()) {
+                if (std::mismatch(root_dir_path.begin(), root_dir_path.end(), path.begin(), path.end()).first != root_dir_path.end()) {
                     return make_error_resp(400);
                 } else if (!std::filesystem::exists(path)) {
                     return make_error_resp(404);

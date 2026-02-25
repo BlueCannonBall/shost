@@ -5,7 +5,7 @@ artifact = "obj"
 install = "/usr/local/bin"
 
 [options]
-compilation-flags = "-Wall -std=c++17 -O3 -pthread"
+compilation-flags = "-Wall -std=c++20 -O3 -pthread"
 libraries = ["boost_program_options", "ssl", "crypto"]
 
 [env.OS.Windows_NT.paths]

@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <shared_mutex>
@@ -36,8 +37,8 @@ struct CacheEntry {
 
 void configure_socket(pn::Socket& socket) {
 #ifdef _WIN32
-    DWORD send_timeout = 60'000;
-    DWORD recv_timeout = 60'000;
+    static constexpr DWORD send_timeout = 60'000;
+    static constexpr DWORD recv_timeout = 60'000;
 #else
     struct timeval send_timeout;
     send_timeout.tv_sec = 60;
@@ -49,8 +50,11 @@ void configure_socket(pn::Socket& socket) {
     socket.setsockopt(SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof send_timeout);
     socket.setsockopt(SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof recv_timeout);
 
-    int tcp_keep_alive = 1;
+    static constexpr int tcp_keep_alive = 1;
     socket.setsockopt(SOL_SOCKET, SO_KEEPALIVE, &tcp_keep_alive, sizeof(int));
+
+    static constexpr int tcp_no_delay = 1;
+    socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, &tcp_no_delay, sizeof(int));
 }
 
 std::string sockaddr_to_string(const struct sockaddr* addr) {
@@ -76,7 +80,7 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
     return ret;
 }
 
-pw::HTTPResponse make_error_resp(uint16_t status_code) {
+pw::HTTPResponse make_error_resp(uint16_t status_code, pn::StringView what = {}) {
     std::ostringstream ss;
     ss << "<!DOCTYPE html>";
     ss << "<html>";
@@ -87,6 +91,9 @@ pw::HTTPResponse make_error_resp(uint16_t status_code) {
     ss << "<body>";
     ss << "<h1>Error response</h1>";
     ss << "<p>Error code: " << status_code << "</p>";
+    if (!what.empty()) {
+        ss << "<p>Error message: " << what << "</p>";
+    }
     ss << "<p>Message: " << pw::status_code_to_reason_phrase(status_code) << "</p>";
     ss << "</body>";
     ss << "</html>";
@@ -152,15 +159,15 @@ int main(int argc, char* argv[]) {
     }
 
     pn::init(true);
-    pn::UniqueSocket<pw::SecureServer> server;
+    pw::SecureServer server;
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server->on_error = (pw::HTTPResponse (*)(uint16_t)) &make_error_resp;
+    server.on_error = (pw::HTTPResponse (*)(uint16_t, pn::StringView)) &make_error_resp;
 
-    server->route("/",
+    server.route("/",
         pw::SecureHTTPRoute {
-            [&root_dir_path, &cache, &cache_lock](const pw::SecureConnection& conn, const pw::HTTPRequest& req, void*) {
+            [&root_dir_path, &cache, &cache_lock](const pw::SecureConnection& conn, const pw::HTTPRequest& req) {
                 std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
 
                 if (req.method != "GET" && req.method != "HEAD") {
@@ -245,6 +252,19 @@ int main(int argc, char* argv[]) {
 
                 std::streamsize size = file.tellg();
                 file.seekg(0, std::ifstream::beg);
+                if (size > 1'000'000) {
+                    return pw::HTTPResponse(200, [file = std::make_shared<std::ifstream>(std::move(file))]() -> std::vector<char> {
+                        if (file->good()) {
+                            std::vector<char> data(1'000'000);
+                            if (file->read(data.data(), data.size())) {
+                                data.resize(file->gcount());
+                                return data;
+                            }
+                        }
+                        return {};
+                    },
+                        {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
+                }
 
                 std::vector<char> content(size);
                 if (file.read(content.data(), size)) {
@@ -255,21 +275,19 @@ int main(int argc, char* argv[]) {
                     };
                     w_lock.unlock();
                     return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
-                } else {
-                    return make_error_resp(500);
                 }
+                return make_error_resp(500);
             },
-            nullptr,
             true,
         });
 
-    if (server->bind(bind_address, port) == PN_ERROR) {
+    if (server.bind(bind_address, port) == PN_ERROR) {
         std::cerr << "Error: " << pn::universal_strerror() << std::endl;
         return EXIT_FAILURE;
     }
 
     if (!certificate_chain_file.empty() && !private_key_file.empty()) {
-        if (server->ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
+        if (server.ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
             std::cerr << "Error: " << pn::universal_strerror() << std::endl;
             return EXIT_FAILURE;
         }
@@ -278,9 +296,9 @@ int main(int argc, char* argv[]) {
         std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
     }
 
-    if (server->listen([](pn::tcp::SecureConnection& conn, void*) {
+    if (server.listen([](pn::tcp::SecureConnection& conn) {
             configure_socket(conn);
-            return false;
+            return true;
         }) == PN_ERROR) {
         std::cerr << "Error: " << pw::universal_strerror() << std::endl;
         return EXIT_FAILURE;

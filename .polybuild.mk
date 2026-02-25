@@ -28,7 +28,7 @@ endif
 c_compiler := $(CC)
 cpp_compiler := $(CXX)
 c_compilation_flags := $(CFLAGS) $(dynamic_flag)
-cpp_compilation_flags := -Wall -std=c++17 -O3 -pthread $(dynamic_flag)
+cpp_compilation_flags := -Wall -std=c++20 -O3 -pthread $(dynamic_flag)
 link_time_flags := $(LDFLAGS)
 libraries := $(library_flag)boost_program_options $(library_flag)ssl $(library_flag)crypto
 prefix := /usr/local/bin
@@ -37,7 +37,7 @@ ifeq ($(OS),Darwin)
 	c_compiler := $(CC)
 	cpp_compiler := $(CXX)
 	c_compilation_flags := $(CFLAGS) $(dynamic_flag)
-	cpp_compilation_flags := -Wall -std=c++17 -O3 -pthread $(dynamic_flag)
+	cpp_compilation_flags := -Wall -std=c++20 -O3 -pthread $(dynamic_flag)
 	link_time_flags := $(LDFLAGS)
 	libraries := $(library_flag)boost_program_options-mt $(library_flag)ssl $(library_flag)crypto
 	prefix := /usr/local/bin
@@ -56,25 +56,25 @@ endif
 all: shost$(out_ext)
 .PHONY: all
 
-obj/main_0$(obj_ext): ./main.cpp .polybuild.mk ./Polyweb/mimetypes.hpp ./Polyweb/string.hpp ./Polyweb/Polynet/string.hpp ./Polyweb/polyweb.hpp ./Polyweb/Polynet/polynet.hpp ./Polyweb/Polynet/secure_sockets.hpp ./Polyweb/Polynet/smart_sockets.hpp ./Polyweb/threadpool.hpp
+obj/main_0$(obj_ext): ./main.cpp .polybuild.mk ./Polyweb/mimetypes.hpp ./Polyweb/string.hpp ./Polyweb/Polynet/string.hpp ./Polyweb/polyweb.hpp ./Polyweb/Polynet/polynet.hpp ./Polyweb/Polynet/secure_sockets.hpp ./Polyweb/thread_pool.hpp
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Compiling $@ from $<..."
 	@mkdir -p obj
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Finished compiling $@ from $<!"
 
-obj/client_0$(obj_ext): Polyweb/client.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
+obj/client_0$(obj_ext): Polyweb/client.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/string.hpp Polyweb/thread_pool.hpp
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Compiling $@ from $<..."
 	@mkdir -p obj
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Finished compiling $@ from $<!"
 
-obj/server_0$(obj_ext): Polyweb/server.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
+obj/server_0$(obj_ext): Polyweb/server.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/string.hpp Polyweb/thread_pool.hpp
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Compiling $@ from $<..."
 	@mkdir -p obj
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Finished compiling $@ from $<!"
 
-obj/websocket_0$(obj_ext): Polyweb/websocket.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
+obj/websocket_0$(obj_ext): Polyweb/websocket.cpp .polybuild.mk Polyweb/binary.hpp Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/string.hpp Polyweb/thread_pool.hpp
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Compiling $@ from $<..."
 	@mkdir -p obj
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@
@@ -86,7 +86,7 @@ obj/string_0$(obj_ext): Polyweb/string.cpp .polybuild.mk Polyweb/string.hpp Poly
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Finished compiling $@ from $<!"
 
-obj/polyweb_0$(obj_ext): Polyweb/polyweb.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/Polynet/smart_sockets.hpp Polyweb/string.hpp Polyweb/threadpool.hpp
+obj/polyweb_0$(obj_ext): Polyweb/polyweb.cpp .polybuild.mk Polyweb/polyweb.hpp Polyweb/Polynet/polynet.hpp Polyweb/Polynet/string.hpp Polyweb/Polynet/secure_sockets.hpp Polyweb/string.hpp Polyweb/thread_pool.hpp
 	@printf "\033[1m[POLYBUILD]\033[0m %s\n" "Compiling $@ from $<..."
 	@mkdir -p obj
 	@"$(cpp_compiler)" $(compile_only_flag) $< $(cpp_compilation_flags) $(obj_path_flag)$@

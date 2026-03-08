@@ -126,6 +126,7 @@ int main(int argc, char* argv[]) {
     std::filesystem::path root_dir_path;
     std::string certificate_chain_file;
     std::string private_key_file;
+    bool quiet;
 
     // clang-format off
     desc.add_options()
@@ -134,7 +135,8 @@ int main(int argc, char* argv[]) {
         ("bind,b", po::value(&bind_address)->default_value("0.0.0.0"), "Specify alternate bind address")
         ("directory,d", po::value(&root_dir_path)->default_value("."), "Specify alternative directory")
         ("certificate-chain-file,c", po::value(&certificate_chain_file), "Specify certificate chain file, enabling TLS")
-        ("private-key-file,k", po::value(&private_key_file), "Specify private key file, enabling TLS");
+        ("private-key-file,k", po::value(&private_key_file), "Specify private key file, enabling TLS")
+        ("quiet,q", po::bool_switch(&quiet), "Suppress access logs");
     // clang-format on
     p.add("port", 1);
 
@@ -167,8 +169,10 @@ int main(int argc, char* argv[]) {
 
     server.route("/",
         pw::SecureHTTPRoute {
-            [&root_dir_path, &cache, &cache_lock](const pw::SecureConnection& conn, const pw::HTTPRequest& req) {
-                std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+            [&root_dir_path, &cache, &cache_lock, quiet](const pw::SecureConnection& conn, const pw::HTTPRequest& req) {
+                if (!quiet) {
+                    std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+                }
 
                 if (req.method != "GET" && req.method != "HEAD") {
                     return make_error_resp(405, {{"Allow", "GET, HEAD"}});

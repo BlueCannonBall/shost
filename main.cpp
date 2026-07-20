@@ -260,7 +260,8 @@ int main(int argc, char* argv[]) {
                     return pw::HTTPResponse(200, [file = std::make_shared<std::ifstream>(std::move(file))]() -> std::vector<char> {
                         if (file->good()) {
                             std::vector<char> data(1'000'000);
-                            if (file->read(data.data(), data.size())) {
+                            file->read(data.data(), data.size());
+                            if (file->gcount() > 0) {
                                 data.resize(file->gcount());
                                 return data;
                             }

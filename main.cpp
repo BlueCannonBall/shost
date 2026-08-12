@@ -35,42 +35,24 @@ struct CacheEntry {
     std::vector<char> content;
 };
 
-void configure_socket(pn::Socket& socket) {
-#ifdef _WIN32
-    static constexpr DWORD send_timeout = 60'000;
-    static constexpr DWORD recv_timeout = 60'000;
-#else
-    struct timeval send_timeout;
-    send_timeout.tv_sec = 60;
-    send_timeout.tv_usec = 0;
-    struct timeval recv_timeout;
-    recv_timeout.tv_sec = 60;
-    recv_timeout.tv_usec = 0;
-#endif
-    socket.setsockopt(SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof send_timeout);
-    socket.setsockopt(SOL_SOCKET, SO_RCVTIMEO, &recv_timeout, sizeof recv_timeout);
-
-    static constexpr int tcp_keep_alive = 1;
-    socket.setsockopt(SOL_SOCKET, SO_KEEPALIVE, &tcp_keep_alive, sizeof(int));
-
-    static constexpr int tcp_no_delay = 1;
-    socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, &tcp_no_delay, sizeof(int));
-}
-
-std::string sockaddr_to_string(const struct sockaddr* addr) {
+std::string sockaddr_to_string(const struct sockaddr_storage& addr) {
     std::string ret;
-    switch (addr->sa_family) {
+    switch (addr.ss_family) {
     case AF_INET: {
         struct sockaddr_in inet_addr;
-        memcpy(&inet_addr, addr, sizeof inet_addr);
-        pn::inet_ntop(AF_INET, &inet_addr.sin_addr, ret);
+        memcpy(&inet_addr, &addr, sizeof inet_addr);
+        if (!pn::inet_ntop(AF_INET, &inet_addr.sin_addr, ret)) {
+            return "Unknown address";
+        }
         break;
     }
 
     case AF_INET6: {
         struct sockaddr_in6 inet6_addr;
-        memcpy(&inet6_addr, addr, sizeof inet6_addr);
-        pn::inet_ntop(AF_INET6, &inet6_addr.sin6_addr, ret);
+        memcpy(&inet6_addr, &addr, sizeof inet6_addr);
+        if (!pn::inet_ntop(AF_INET6, &inet6_addr.sin6_addr, ret)) {
+            return "Unknown address";
+        }
         break;
     }
 
@@ -80,7 +62,7 @@ std::string sockaddr_to_string(const struct sockaddr* addr) {
     return ret;
 }
 
-pw::HTTPResponse make_error_resp(uint16_t status_code, pn::StringView what = {}) {
+pw::Response make_error_resp(uint16_t status_code, pn::StringView what = {}) {
     std::ostringstream ss;
     ss << "<!DOCTYPE html>";
     ss << "<html>";
@@ -98,11 +80,11 @@ pw::HTTPResponse make_error_resp(uint16_t status_code, pn::StringView what = {})
     ss << "</body>";
     ss << "</html>";
     ss << std::endl;
-    return pw::HTTPResponse(status_code, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
+    return pw::Response(status_code, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
 }
 
-pw::HTTPResponse make_error_resp(uint16_t status_code, const pw::HTTPHeaders& headers) {
-    pw::HTTPResponse resp = make_error_resp(status_code);
+pw::Response make_error_resp(uint16_t status_code, const pw::Headers& headers) {
+    pw::Response resp = make_error_resp(status_code);
     for (const auto& header : headers) {
         if (!resp.headers.count(header.first)) {
             resp.headers.insert(header);
@@ -160,18 +142,27 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    pn::init(true);
-    pw::SecureServer server;
+    if (pn::Status result = pn::init(true); !result) {
+        std::cerr << "Error: " << result.error().message() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    pw::TLSServer server;
     std::unordered_map<std::string, CacheEntry> cache;
     Lock cache_lock;
 
-    server.on_error = (pw::HTTPResponse (*)(uint16_t, pn::StringView)) &make_error_resp;
+    server.config.tcp.send_timeout = std::chrono::seconds(60);
+    server.config.tcp.recv_timeout = std::chrono::seconds(60);
+
+    server.error_cb = [](uint16_t status_code, pn::StringView what) {
+        return make_error_resp(status_code, what);
+    };
 
     server.route("/",
-        pw::SecureHTTPRoute {
-            [&root_dir_path, &cache, &cache_lock, quiet](const pw::SecureConnection& conn, const pw::HTTPRequest& req) {
+        pw::TLSRoute {
+            [&root_dir_path, &cache, &cache_lock, quiet](const pw::TLSConnection& conn, const pw::Request& req) {
                 if (!quiet) {
-                    std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(&conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
+                    std::cout << '[' << pw::build_date() << "] " << sockaddr_to_string(conn.addr) << " - \"" << req.method << ' ' << req.target << ' ' << req.http_version << "\"" << std::endl;
                 }
 
                 if (req.method != "GET" && req.method != "HEAD") {
@@ -231,7 +222,7 @@ int main(int argc, char* argv[]) {
                         ss << "</body>";
                         ss << "</html>";
                         ss << std::endl;
-                        return pw::HTTPResponse(200, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
+                        return pw::Response(200, ss.str(), {{"Content-Type", "text/html"}, BASE_HEADERS});
                     }
                 }
 
@@ -240,12 +231,12 @@ int main(int argc, char* argv[]) {
                     std::chrono::system_clock::now()));
 
                 if (auto if_modified_since_it = req.headers.find("If-Modified-Since"); if_modified_since_it != req.headers.end() && pw::parse_date(if_modified_since_it->second) == last_modified) {
-                    return pw::HTTPResponse(304, {BASE_HEADERS});
+                    return pw::Response(304, {BASE_HEADERS});
                 }
 
                 ReadLock r_lock(cache_lock);
                 if (auto cache_entry_it = cache.find(path.generic_string()); cache_entry_it != cache.end() && cache_entry_it->second.last_modified == last_modified) {
-                    return pw::HTTPResponse(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
+                    return pw::Response(200, cache_entry_it->second.content, {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 }
                 r_lock.unlock();
 
@@ -257,7 +248,7 @@ int main(int argc, char* argv[]) {
                 std::streamsize size = file.tellg();
                 file.seekg(0, std::ifstream::beg);
                 if (size > 1'000'000) {
-                    return pw::HTTPResponse(200, [file = std::make_shared<std::ifstream>(std::move(file))]() -> std::vector<char> {
+                    return pw::Response(200, [file = std::make_shared<std::ifstream>(std::move(file))]() -> std::vector<char> {
                         if (file->good()) {
                             std::vector<char> data(1'000'000);
                             file->read(data.data(), data.size());
@@ -279,21 +270,22 @@ int main(int argc, char* argv[]) {
                         .content = content,
                     };
                     w_lock.unlock();
-                    return pw::HTTPResponse(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
+                    return pw::Response(200, std::move(content), {{"Content-Type", pw::filename_to_mimetype(path.string())}, {"Last-Modified", pw::build_date(last_modified)}, BASE_HEADERS});
                 }
                 return make_error_resp(500);
             },
             true,
         });
 
-    if (server.bind(bind_address, port) == PN_ERROR) {
-        std::cerr << "Error: " << pn::universal_strerror() << std::endl;
+    if (pn::Status result = server.bind(bind_address, port); !result) {
+        std::cerr << "Error: " << result.error().message() << std::endl;
         return EXIT_FAILURE;
     }
 
+    pn::TLSContext context;
     if (!certificate_chain_file.empty() && !private_key_file.empty()) {
-        if (server.ssl_init(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM) == PN_ERROR) {
-            std::cerr << "Error: " << pn::universal_strerror() << std::endl;
+        if (pn::Status result = context.init_server(certificate_chain_file, private_key_file, SSL_FILETYPE_PEM); !result) {
+            std::cerr << "Error: " << result.error().message() << std::endl;
             return EXIT_FAILURE;
         }
         std::cout << "Serving HTTPS on " << bind_address << " port " << port << " (https://" << bind_address << ':' << port << "/) ..." << std::endl;
@@ -301,14 +293,12 @@ int main(int argc, char* argv[]) {
         std::cout << "Serving HTTP on " << bind_address << " port " << port << " (http://" << bind_address << ':' << port << "/) ..." << std::endl;
     }
 
-    if (server.listen([](pn::tcp::SecureConnection& conn) {
-            configure_socket(conn);
-            return true;
-        }) == PN_ERROR) {
-        std::cerr << "Error: " << pw::universal_strerror() << std::endl;
+    if (pn::Status result = context ? server.listen(context) : server.listen(); !result) {
+        std::cerr << "Error: " << result.error().message() << std::endl;
         return EXIT_FAILURE;
     }
 
-    pn::quit();
+    (void) server.close();
+    (void) pn::quit();
     return EXIT_SUCCESS;
 }
